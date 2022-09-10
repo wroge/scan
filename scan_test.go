@@ -10,11 +10,6 @@ import (
 	"github.com/wroge/scan"
 )
 
-type Data struct {
-	IDs    []int
-	Titles []string
-}
-
 type Author struct {
 	ID   int64
 	Name string
