@@ -12,6 +12,7 @@
 - Auto closing.
 - No reflection, only generics.
 - Aggregation of rows is not a goal of this module and should be performed in the database.
+- Take a look at [wroge/superbasic](https://github.com/wroge/superbasic) for query building.
 - [Benchmarks](#benchmarks).
 
 ```go
