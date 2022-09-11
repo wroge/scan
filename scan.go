@@ -140,11 +140,7 @@ func All[T any](rows Rows, columns ...Column[T]) ([]T, error) {
 		count++
 	}
 
-	if err = rows.Err(); err != nil {
-		return nil, doClose(rows, err)
-	}
-
-	return out, doClose(rows, nil)
+	return out, doClose(rows, rows.Err())
 }
 
 // All returns T from a row and columns.

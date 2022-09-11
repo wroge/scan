@@ -119,6 +119,11 @@ func BenchmarkExample1Standard(b *testing.B) {
 			posts = append(posts, post)
 		}
 
+		err = rows.Err()
+		if err != nil {
+			b.Error(err)
+		}
+
 		postsResult = posts
 	}
 }
@@ -239,6 +244,11 @@ func BenchmarkExample2Standard(b *testing.B) {
 			}
 
 			posts = append(posts, post)
+		}
+
+		err = rows.Err()
+		if err != nil {
+			b.Error(err)
 		}
 
 		postsResult = posts

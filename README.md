@@ -106,12 +106,12 @@ goos: darwin
 goarch: amd64
 pkg: github.com/wroge/scan
 cpu: Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
-BenchmarkExample1WrogeScan-8      686976             17547 ns/op            7176 B/op        149 allocs/op
-BenchmarkExample1Standard-8       754894             14519 ns/op            5528 B/op        112 allocs/op
-BenchmarkExample2WrogeScan-8      759638             15721 ns/op            8936 B/op        201 allocs/op
-BenchmarkExample2Standard-8       810042             12435 ns/op            9748 B/op        117 allocs/op
-BenchmarkExample3WrogeScan-8     5651865              2190 ns/op             848 B/op         24 allocs/op
-BenchmarkExample3Standard-8      7641949              1571 ns/op             432 B/op         12 allocs/op
+BenchmarkExample1WrogeScan-8      691414             17149 ns/op            7224 B/op        149 allocs/op
+BenchmarkExample1Standard-8       778964             14490 ns/op            5576 B/op        112 allocs/op
+BenchmarkExample2WrogeScan-8      755938             16308 ns/op            8984 B/op        201 allocs/op
+BenchmarkExample2Standard-8       805694             13108 ns/op            9823 B/op        117 allocs/op
+BenchmarkExample3WrogeScan-8     5683458              2158 ns/op             896 B/op         24 allocs/op
+BenchmarkExample3Standard-8      7509338              1592 ns/op             480 B/op         12 allocs/op
 PASS
-ok      github.com/wroge/scan   94.167s
+ok      github.com/wroge/scan   95.894s
 ```
