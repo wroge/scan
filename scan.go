@@ -159,13 +159,13 @@ func One[T any](row Row, columns ...Column[T]) (T, error) {
 
 	err := row.Scan(dest...)
 	if err != nil {
-		return out, fmt.Errorf("wroge/scan error: : %w", err)
+		return out, fmt.Errorf("wroge/scan error: %w", err)
 	}
 
 	for _, column := range columns {
 		err = column.Set(&out)
 		if err != nil {
-			return out, fmt.Errorf("wroge/scan error: : %w", err)
+			return out, fmt.Errorf("wroge/scan error: %w", err)
 		}
 	}
 
