@@ -1,9 +1,10 @@
-//nolint:gochecknoglobals,exhaustivestruct,exhaustruct,varnamelen,gocritic
+//nolint:gochecknoglobals,exhaustivestruct,exhaustruct,varnamelen,gocritic,goerr113
 package scan_test
 
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -315,9 +316,123 @@ func BenchmarkExample3Standard(b *testing.B) {
 	}
 }
 
+func TestJSONErr(t *testing.T) {
+	t.Parallel()
+
+	_, err := scan.One[Post](row3(),
+		scan.Any(func(post *Post, id int64) { post.ID = id }),
+		scan.Null("No Title", func(post *Post, title string) { post.Title = title }),
+		scan.JSON(func(post *Post, authors Author) {}),
+	)
+	if err == nil {
+		t.Fail()
+	}
+
+	ute := &json.UnmarshalTypeError{}
+
+	if !errors.As(err, &ute) {
+		t.Fail()
+	}
+}
+
+func TestCloseErr(t *testing.T) {
+	t.Parallel()
+
+	rows := &fakeRows{
+		closeErr: fmt.Errorf("closing failed"),
+		index:    -1,
+		data: [][]any{
+			{1, "Post One", []byte(`[{"id": 1, "name": "Jim"},{"id": 2, "name": "Tim"}]`)},
+		},
+	}
+
+	_, err := scan.All[Post](rows,
+		scan.Any(func(post *Post, id int64) { post.ID = id }),
+		scan.Null("No Title", func(post *Post, title string) { post.Title = title }),
+		scan.JSON(func(post *Post, authors []Author) { post.Authors = authors }),
+	)
+	if err == nil || err.Error() != "wroge/scan error: closing failed" {
+		t.Fail()
+	}
+}
+
+func TestScanErr(t *testing.T) {
+	t.Parallel()
+
+	rows := &fakeRows{
+		scanErr: fmt.Errorf("scan failed"),
+		index:   -1,
+		data: [][]any{
+			{1, "Post One", []byte(`[{"id": 1, "name": "Jim"},{"id": 2, "name": "Tim"}]`)},
+		},
+	}
+
+	_, err := scan.All[Post](rows,
+		scan.Any(func(post *Post, id int64) { post.ID = id }),
+		scan.Null("No Title", func(post *Post, title string) { post.Title = title }),
+		scan.JSON(func(post *Post, authors []Author) { post.Authors = authors }),
+	)
+	if err == nil {
+		t.Fail()
+	}
+}
+
+func TestErr(t *testing.T) {
+	t.Parallel()
+
+	rows := &fakeRows{
+		err:   fmt.Errorf("failed"),
+		index: -1,
+		data: [][]any{
+			{1, "Post One", []byte(`[{"id": 1, "name": "Jim"},{"id": 2, "name": "Tim"}]`)},
+		},
+	}
+
+	_, err := scan.All[Post](rows,
+		scan.Any(func(post *Post, id int64) { post.ID = id }),
+		scan.Null("No Title", func(post *Post, title string) { post.Title = title }),
+		scan.JSON(func(post *Post, authors []Author) { post.Authors = authors }),
+	)
+	if err == nil {
+		t.Fail()
+	}
+}
+
+func TestRowErr(t *testing.T) {
+	t.Parallel()
+
+	row := &fakeRows{
+		scanErr: fmt.Errorf("scan failed"),
+		index:   0,
+		data: [][]any{
+			{1, "Post One", []byte(`[{"id": 1, "name": "Jim"},{"id": 2, "name": "Tim"}]`)},
+		},
+	}
+
+	_, err := scan.One[Post](row,
+		scan.Any(func(post *Post, id int64) { post.ID = id }),
+		scan.Null("No Title", func(post *Post, title string) { post.Title = title }),
+		scan.JSON(func(post *Post, authors []Author) { post.Authors = authors }),
+	)
+	if err == nil {
+		t.Fail()
+	}
+}
+
 type fakeRows struct {
-	index int
-	data  [][]any
+	closeErr error
+	scanErr  error
+	err      error
+	index    int
+	data     [][]any
+}
+
+func (r *fakeRows) Close() error {
+	return r.closeErr
+}
+
+func (r *fakeRows) Err() error {
+	return r.err
 }
 
 func (r *fakeRows) Next() bool {
@@ -326,8 +441,12 @@ func (r *fakeRows) Next() bool {
 	return r.index < len(r.data)
 }
 
-//nolint:cyclop,funlen
+//nolint:cyclop,funlen,gocognit
 func (r *fakeRows) Scan(dest ...any) error {
+	if r.scanErr != nil {
+		return r.scanErr
+	}
+
 	for i, d := range dest {
 		switch t := d.(type) {
 		case *sql.RawBytes:

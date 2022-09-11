@@ -11,6 +11,7 @@ type Row interface {
 }
 
 type Rows interface {
+	Err() error
 	Next() bool
 	Row
 }
@@ -90,7 +91,11 @@ func doClose(rows any, wrap error) error {
 		}
 	}
 
-	return wrap
+	if wrap != nil {
+		return fmt.Errorf("wroge/scan error: %w", wrap)
+	}
+
+	return nil
 }
 
 func All[T any](rows Rows, columns ...Column[T]) ([]T, error) {
@@ -125,6 +130,10 @@ func All[T any](rows Rows, columns ...Column[T]) ([]T, error) {
 		count++
 	}
 
+	if err = rows.Err(); err != nil {
+		return nil, doClose(rows, err)
+	}
+
 	return out, doClose(rows, nil)
 }
 
@@ -139,13 +148,13 @@ func One[T any](row Row, columns ...Column[T]) (T, error) {
 
 	err := row.Scan(dest...)
 	if err != nil {
-		return out, fmt.Errorf("scan: %w", err)
+		return out, fmt.Errorf("wroge/scan error: : %w", err)
 	}
 
 	for _, column := range columns {
 		err = column.Set(&out)
 		if err != nil {
-			return out, fmt.Errorf("scan: %w", err)
+			return out, fmt.Errorf("wroge/scan error: : %w", err)
 		}
 	}
 
@@ -158,7 +167,7 @@ type CloseError struct {
 }
 
 func (ce CloseError) Error() string {
-	return ce.Err.Error()
+	return fmt.Sprintf("wroge/scan error: %s", ce.Err)
 }
 
 func (ce CloseError) Unwrap() error {
