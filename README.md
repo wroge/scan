@@ -96,17 +96,17 @@ post, _ = scan.One[Post](row,
 - Criticism and possible improvements to the [benchmarks and tests](https://github.com/wroge/scan/blob/main/scan_test.go) are very welcome.
 
 ```sh
-➜ go test -bench=. -benchtime=10s -benchmem
+➜ go test -bench=. -benchtime=10s -benchmem                                               
 goos: darwin
 goarch: amd64
 pkg: github.com/wroge/scan
 cpu: Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
-BenchmarkExample1WrogeScan-8      705069             16962 ns/op            6984 B/op        139 allocs/op
-BenchmarkExample1Standard-8       759714             14573 ns/op            5576 B/op        112 allocs/op
-BenchmarkExample2WrogeScan-8      746012             16083 ns/op            9056 B/op        204 allocs/op
-BenchmarkExample2Standard-8       844945             13338 ns/op           10073 B/op        117 allocs/op
-BenchmarkExample3WrogeScan-8     5814768              2329 ns/op             816 B/op         21 allocs/op
-BenchmarkExample3Standard-8      7023103              1823 ns/op             480 B/op         12 allocs/op
+BenchmarkExample1WrogeScan-8      645007             16927 ns/op            6984 B/op        139 allocs/op
+BenchmarkExample1Standard-8       817813             14611 ns/op            5576 B/op        112 allocs/op
+BenchmarkExample2WrogeScan-8      742626             16124 ns/op            9056 B/op        204 allocs/op
+BenchmarkExample2Standard-8       822295             13566 ns/op            9723 B/op        117 allocs/op
+BenchmarkExample3WrogeScan-8     5296464              2261 ns/op             816 B/op         21 allocs/op
+BenchmarkExample3Standard-8      7630190              1594 ns/op             480 B/op         12 allocs/op
 PASS
-ok      github.com/wroge/scan   97.750s
+ok      github.com/wroge/scan   95.039s
 ```
