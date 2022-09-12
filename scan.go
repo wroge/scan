@@ -26,7 +26,7 @@ type Column[T any] interface {
 
 // AnyColumn is a typesafe Column to Scan and Set V for each Row.
 type AnyColumn[T, V any] struct {
-	Setter func(typ *T, value V) error
+	Setter func(each *T, value V) error
 
 	scan V
 }
@@ -35,8 +35,8 @@ func (c *AnyColumn[T, V]) Scan() any {
 	return &c.scan
 }
 
-func (c *AnyColumn[T, V]) Set(typ *T) error {
-	return c.Setter(typ, c.scan)
+func (c *AnyColumn[T, V]) Set(each *T) error {
+	return c.Setter(each, c.scan)
 }
 
 // AnyErr produces a Column.
@@ -48,8 +48,8 @@ func AnyErr[T, V any](setter func(*T, V) error) *AnyColumn[T, V] {
 
 // Any is like AnyErr but omits the error.
 func Any[T, V any](setter func(*T, V)) *AnyColumn[T, V] {
-	return AnyErr(func(typ *T, value V) error {
-		setter(typ, value)
+	return AnyErr(func(each *T, value V) error {
+		setter(each, value)
 
 		return nil
 	})
@@ -58,22 +58,22 @@ func Any[T, V any](setter func(*T, V)) *AnyColumn[T, V] {
 // NullErr produces a Column that can scan nullable values and
 // sets a default value if its null.
 func NullErr[T, V any](def V, setter func(*T, V) error) *AnyColumn[T, *V] {
-	return AnyErr(func(typ *T, value *V) error {
+	return AnyErr(func(each *T, value *V) error {
 		if value == nil {
-			return setter(typ, def)
+			return setter(each, def)
 		}
 
-		return setter(typ, *value)
+		return setter(each, *value)
 	})
 }
 
 // Null is like NullErr but omits the error.
 func Null[T, V any](def V, setter func(*T, V)) *AnyColumn[T, *V] {
-	return Any(func(typ *T, value *V) {
+	return Any(func(each *T, value *V) {
 		if value == nil {
-			setter(typ, def)
+			setter(each, def)
 		} else {
-			setter(typ, *value)
+			setter(each, *value)
 		}
 	})
 }
@@ -81,7 +81,7 @@ func Null[T, V any](def V, setter func(*T, V)) *AnyColumn[T, *V] {
 // JSONErr produces a Column that scans json into bytes and
 // unmarshals it into V.
 func JSONErr[T, V any](setter func(*T, V) error) *AnyColumn[T, []byte] {
-	return AnyErr(func(typ *T, b []byte) error {
+	return AnyErr(func(each *T, b []byte) error {
 		var value V
 
 		err := json.Unmarshal(b, &value)
@@ -89,14 +89,14 @@ func JSONErr[T, V any](setter func(*T, V) error) *AnyColumn[T, []byte] {
 			return err
 		}
 
-		return setter(typ, value)
+		return setter(each, value)
 	})
 }
 
 // JSON is like JSONErr but omits the error.
 func JSON[T, V any](setter func(*T, V)) *AnyColumn[T, []byte] {
-	return JSONErr(func(typ *T, value V) error {
-		setter(typ, value)
+	return JSONErr(func(each *T, value V) error {
+		setter(each, value)
 
 		return nil
 	})
@@ -126,36 +126,65 @@ func doClose(rows any, wrap error) error {
 // All returns a slice of T from rows and columns.
 // Close is called automatically.
 func All[T any](rows Rows, columns ...Column[T]) ([]T, error) {
-	ctx := context.Background()
-	var out []T
-	err := Each[T](ctx, func(ctx context.Context, row T) error {
-		out = append(out, row)
-		return nil
-	},
-		rows, columns...)
-	return out, err
+	var (
+		err  error
+		out  []T
+		dest = make([]any, len(columns))
+	)
+
+	for i, column := range columns {
+		dest[i] = column.Scan()
+	}
+
+	count := 0
+
+	for rows.Next() {
+		//nolint:gocritic
+		out = append(out, *new(T))
+
+		err = rows.Scan(dest...)
+		if err != nil {
+			return nil, doClose(rows, err)
+		}
+
+		for _, column := range columns {
+			err = column.Set(&out[count])
+			if err != nil {
+				return nil, doClose(rows, err)
+			}
+		}
+
+		count++
+	}
+
+	return out, doClose(rows, rows.Err())
 }
 
-// Each runs f for each scanned T.
+// Each runs each function for each scanned T.
 // Close is called automatically.
-func Each[T any](ctx context.Context, f func(context.Context, T) error, rows Rows, columns ...Column[T]) error {
-	dest := make([]any, len(columns))
+func Each[T any](ctx context.Context, each func(context.Context, T) error, rows Rows, columns ...Column[T]) error {
+	var (
+		err  error
+		dest = make([]any, len(columns))
+	)
+
 	for i, column := range columns {
 		dest[i] = column.Scan()
 	}
 
 	for rows.Next() {
-		if err := rows.Scan(dest...); err != nil {
+		if err = rows.Scan(dest...); err != nil {
 			return doClose(rows, err)
 		}
 
 		var row T
 		for _, column := range columns {
-			if err := column.Set(&row); err != nil {
+			if err = column.Set(&row); err != nil {
 				return doClose(rows, err)
 			}
 		}
-		if err := f(ctx, row); err != nil {
+
+		if err = each(ctx, row); err != nil {
 			return doClose(rows, err)
 		}
 	}

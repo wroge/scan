@@ -90,6 +90,10 @@ post, _ = scan.One[Post](row,
 // {1 Post One [{1 Jim} {2 Tim}]}
 ```
 
+## Each
+
+- With ```Each[T](ctx, func(ctx, T) error, Rows, ...Column[T])``` it is possible to scan large number of rows.
+
 ## Benchmarks
 
 - ```Standard``` scans rows by hand.
@@ -101,12 +105,14 @@ goos: darwin
 goarch: amd64
 pkg: github.com/wroge/scan
 cpu: Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
-BenchmarkExample1WrogeScan-8      645007             16927 ns/op            6984 B/op        139 allocs/op
-BenchmarkExample1Standard-8       817813             14611 ns/op            5576 B/op        112 allocs/op
-BenchmarkExample2WrogeScan-8      742626             16124 ns/op            9056 B/op        204 allocs/op
-BenchmarkExample2Standard-8       822295             13566 ns/op            9723 B/op        117 allocs/op
-BenchmarkExample3WrogeScan-8     5296464              2261 ns/op             816 B/op         21 allocs/op
-BenchmarkExample3Standard-8      7630190              1594 ns/op             480 B/op         12 allocs/op
+BenchmarkExample1WrogeScanAll-8           663880             17633 ns/op            6984 B/op        139 allocs/op
+BenchmarkExample1WrogeScanEach-8          647938             17307 ns/op            7464 B/op        149 allocs/op
+BenchmarkExample1Standard-8               770737             14474 ns/op            5576 B/op        112 allocs/op
+BenchmarkExample2WrogeScanAll-8           697645             15928 ns/op            9056 B/op        204 allocs/op
+BenchmarkExample2WrogeScanEach-8          672688             16484 ns/op            9536 B/op        214 allocs/op
+BenchmarkExample2Standard-8               830355             12990 ns/op            9677 B/op        117 allocs/op
+BenchmarkExample3WrogeScanOne-8          6083386              2056 ns/op             816 B/op         21 allocs/op
+BenchmarkExample3Standard-8              7549023              1591 ns/op             480 B/op         12 allocs/op
 PASS
-ok      github.com/wroge/scan   95.039s
+ok      github.com/wroge/scan   98.016s
 ```
