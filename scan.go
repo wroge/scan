@@ -1,4 +1,4 @@
-//nolint:ireturn
+//nolint:ireturn,wrapcheck
 package scan
 
 import (
@@ -23,17 +23,6 @@ type Column[T any] interface {
 	Set(*T) error
 }
 
-// Any produces an AnyColumn but omits error.
-func Any[T, V any](setter func(*T, V)) *AnyColumn[T, V] {
-	return &AnyColumn[T, V]{
-		Setter: func(typ *T, value V) error {
-			setter(typ, value)
-
-			return nil
-		},
-	}
-}
-
 // AnyColumn is a typesafe Column to Scan and Set V for each Row.
 type AnyColumn[T, V any] struct {
 	Setter func(typ *T, value V) error
@@ -49,40 +38,67 @@ func (c *AnyColumn[T, V]) Set(typ *T) error {
 	return c.Setter(typ, c.scan)
 }
 
-// Null produces a Column that can scan nullable values and
-// sets a default value if its null.
-func Null[T, V any](def V, setter func(*T, V)) *AnyColumn[T, *V] {
-	return &AnyColumn[T, *V]{
-		Setter: func(typ *T, value *V) error {
-			if value == nil {
-				setter(typ, def)
-			} else {
-				setter(typ, *value)
-			}
-
-			return nil
-		},
+// AnyErr produces a Column.
+func AnyErr[T, V any](setter func(*T, V) error) *AnyColumn[T, V] {
+	return &AnyColumn[T, V]{
+		Setter: setter,
 	}
 }
 
-// JSON produces a Column that scans json into bytes and
+// Any is like AnyErr but omits the error.
+func Any[T, V any](setter func(*T, V)) *AnyColumn[T, V] {
+	return AnyErr(func(typ *T, value V) error {
+		setter(typ, value)
+
+		return nil
+	})
+}
+
+// NullErr produces a Column that can scan nullable values and
+// sets a default value if its null.
+func NullErr[T, V any](def V, setter func(*T, V) error) *AnyColumn[T, *V] {
+	return AnyErr(func(typ *T, value *V) error {
+		if value == nil {
+			return setter(typ, def)
+		}
+
+		return setter(typ, *value)
+	})
+}
+
+// Null is like NullErr but omits the error.
+func Null[T, V any](def V, setter func(*T, V)) *AnyColumn[T, *V] {
+	return Any(func(typ *T, value *V) {
+		if value == nil {
+			setter(typ, def)
+		} else {
+			setter(typ, *value)
+		}
+	})
+}
+
+// JSONErr produces a Column that scans json into bytes and
 // unmarshals it into V.
+func JSONErr[T, V any](setter func(*T, V) error) *AnyColumn[T, []byte] {
+	return AnyErr(func(typ *T, b []byte) error {
+		var value V
+
+		err := json.Unmarshal(b, &value)
+		if err != nil {
+			return err
+		}
+
+		return setter(typ, value)
+	})
+}
+
+// JSON is like JSONErr but omits the error.
 func JSON[T, V any](setter func(*T, V)) *AnyColumn[T, []byte] {
-	return &AnyColumn[T, []byte]{
-		Setter: func(typ *T, js []byte) error {
-			var value V
+	return JSONErr(func(typ *T, value V) error {
+		setter(typ, value)
 
-			err := json.Unmarshal(js, &value)
-			if err != nil {
-				//nolint:wrapcheck
-				return err
-			}
-
-			setter(typ, value)
-
-			return nil
-		},
-	}
+		return nil
+	})
 }
 
 func doClose(rows any, wrap error) error {
@@ -168,6 +184,7 @@ func One[T any](row Row, columns ...Column[T]) (T, error) {
 	return out, nil
 }
 
+// CloseError is returned if the closing of rows fails.
 type CloseError struct {
 	Err  error
 	Wrap error

@@ -15,16 +15,19 @@
 - Take a look at [wroge/superbasic](https://github.com/wroge/superbasic) for query building.
 - [Benchmarks](#benchmarks).
 
+## Examples
+
+- ```All[T](Rows, ...Column[T])``` scans rows into ```[]T``` and performs the closing.
+- A Column provides a stable, scannable pointer, which can be set via ```Set(*T)``` after each scan.
+- ```AnyErr``` is a type-safe Column with a pointer to ```V``` and a setter function ```func(*T, V)```.
+- ```Any``` is like ```AnyErr```, but without the returned error.
+- ```Null``` scans nullable values and uses a default if the scanned value is nil.
+
 ```go
-package main
-
-import (
-	"database/sql"
-	"fmt"
-
-	"github.com/wroge/scan"
-	_ "modernc.org/sqlite"
-)
+type Author struct {
+	ID   int64
+	Name string
+}
 
 type Post struct {
 	ID      int64
@@ -32,67 +35,59 @@ type Post struct {
 	Authors []Author
 }
 
-type Author struct {
-	ID   int64
-	Name string
-}
+rows, _ = db.Query(`SELECT * FROM (VALUES 
+	(1, null, JSON_ARRAY(JSON_OBJECT('id', 1, 'name', 'Jim'), JSON_OBJECT('id', 2, 'name', 'Tim'))),
+	(2, 'Post Two', JSON_ARRAY(JSON_OBJECT('id', 2, 'name', 'Tim'))))`)
 
-func main() {
-	db, _ := sql.Open("sqlite", ":memory:")
+posts, _ = scan.All[Post](rows,
+	scan.Any(func(post *Post, id int64) { post.ID = id }),
+	scan.Null("No Title", func(post *Post, title string) { post.Title = title }),
+	scan.AnyErr(func(post *Post, authors []byte) error { return json.Unmarshal(authors, &post.Authors) }),
+)
+// [{1 No Title [{1 Jim} {2 Tim}]} {2 Post Two [{2 Tim}]}]
+```
 
-	var rows scan.Rows
-	var posts []Post
+- Column ```JSON``` scans a value into ```[]byte``` and unmarshals it into ```V```.
+- The setter functions are executed in order, so the following is possible.
 
-	rows, _ = db.Query(`SELECT * FROM (VALUES 
-		(1, null, JSON_ARRAY(JSON_OBJECT('id', 1, 'name', 'Jim'), JSON_OBJECT('id', 2, 'name', 'Tim'))),
-		(2, 'Post Two', JSON_ARRAY(JSON_OBJECT('id', 2, 'name', 'Tim'))))`)
+```go
+rows, _ = db.Query(`SELECT * FROM (VALUES 
+	(1, null, JSON_ARRAY(1, 2), JSON_ARRAY('Jim','Tim')),
+	(2, 'Post Two', JSON_ARRAY(2), JSON_ARRAY('Tim')))`)
 
-	posts, _ = scan.All[Post](rows,
-		scan.Any(func(post *Post, id int64) { post.ID = id }),
-		scan.Null("No Title", func(post *Post, title string) { post.Title = title }),
-		scan.JSON(func(post *Post, authors []Author) { post.Authors = authors }),
-	)
+posts, _ = scan.All[Post](rows,
+	scan.Any(func(post *Post, id int64) { post.ID = id }),
+	scan.Null("No Title", func(post *Post, title string) { post.Title = title }),
+	scan.JSON(func(post *Post, ids []int64) {
+		post.Authors = make([]Author, len(ids))
 
-	fmt.Println(posts)
-	// [{1 No Title [{1 Jim} {2 Tim}]} {2 Post Two [{2 Tim}]}]
+		for i, id := range ids {
+			post.Authors[i].ID = id
+		}
+	}),
+	scan.JSON(func(post *Post, names []string) {
+		for i, name := range names {
+			post.Authors[i].Name = name
+		}
+	}),
+)
+// [{1 No Title [{1 Jim} {2 Tim}]} {2 Post Two [{2 Tim}]}]
+```
 
-	rows, _ = db.Query(`SELECT * FROM (VALUES 
-		(1, null, json_array(1, 2), json_array('Jim','Tim')),
-		(2, 'Post Two', json_array(2), json_array('Tim')))`)
+- A single ```Row``` can be scanned via ```One[T](Row, ...Column[T])```.
+- Full example [here](https://github.com/wroge/scan/blob/main/EXAMPLE.md).
 
-	posts, _ = scan.All[Post](rows,
-		scan.Any(func(post *Post, id int64) { post.ID = id }),
-		scan.Null("No Title", func(post *Post, title string) { post.Title = title }),
-		scan.JSON(func(post *Post, ids []int64) {
-			post.Authors = make([]Author, len(ids))
+```go
+row = db.QueryRow(
+	`SELECT 1, 'Post One', JSON_ARRAY(JSON_OBJECT('id', 1, 'name', 'Jim'), 
+		JSON_OBJECT('id', 2, 'name', 'Tim'))`)
 
-			for i, id := range ids {
-				post.Authors[i].ID = id
-			}
-		}),
-		scan.JSON(func(post *Post, names []string) {
-			for i, name := range names {
-				post.Authors[i].Name = name
-			}
-		}),
-	)
-
-	fmt.Println(posts)
-	// [{1 No Title [{1 Jim} {2 Tim}]} {2 Post Two [{2 Tim}]}]
-
-	row := db.QueryRow(
-		`SELECT 1, 'Post One', JSON_ARRAY(JSON_OBJECT('id', 1, 'name', 'Jim'), 
-			JSON_OBJECT('id', 2, 'name', 'Tim'))`)
-
-	post, err := scan.One[Post](row,
-		scan.Any(func(post *Post, id int64) { post.ID = id }),
-		scan.Null("No Title", func(post *Post, title string) { post.Title = title }),
-		scan.JSON(func(post *Post, authors []Author) { post.Authors = authors }),
-	)
-
-	fmt.Println(post, err)
-	// {1 Post One [{1 Jim} {2 Tim}]}
-}
+post, _ = scan.One[Post](row,
+	scan.Any(func(post *Post, id int64) { post.ID = id }),
+	scan.Any(func(post *Post, title string) { post.Title = title }),
+	scan.AnyErr(func(post *Post, authors []byte) error { return json.Unmarshal(authors, &post.Authors) }),
+)
+// {1 Post One [{1 Jim} {2 Tim}]}
 ```
 
 ## Benchmarks
@@ -106,12 +101,12 @@ goos: darwin
 goarch: amd64
 pkg: github.com/wroge/scan
 cpu: Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
-BenchmarkExample1WrogeScan-8      691414             17149 ns/op            7224 B/op        149 allocs/op
-BenchmarkExample1Standard-8       778964             14490 ns/op            5576 B/op        112 allocs/op
-BenchmarkExample2WrogeScan-8      755938             16308 ns/op            8984 B/op        201 allocs/op
-BenchmarkExample2Standard-8       805694             13108 ns/op            9823 B/op        117 allocs/op
-BenchmarkExample3WrogeScan-8     5683458              2158 ns/op             896 B/op         24 allocs/op
-BenchmarkExample3Standard-8      7509338              1592 ns/op             480 B/op         12 allocs/op
+BenchmarkExample1WrogeScan-8      705069             16962 ns/op            6984 B/op        139 allocs/op
+BenchmarkExample1Standard-8       759714             14573 ns/op            5576 B/op        112 allocs/op
+BenchmarkExample2WrogeScan-8      746012             16083 ns/op            9056 B/op        204 allocs/op
+BenchmarkExample2Standard-8       844945             13338 ns/op           10073 B/op        117 allocs/op
+BenchmarkExample3WrogeScan-8     5814768              2329 ns/op             816 B/op         21 allocs/op
+BenchmarkExample3Standard-8      7023103              1823 ns/op             480 B/op         12 allocs/op
 PASS
-ok      github.com/wroge/scan   95.894s
+ok      github.com/wroge/scan   97.750s
 ```

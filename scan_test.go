@@ -1,8 +1,7 @@
-//nolint:gochecknoglobals,exhaustivestruct,exhaustruct,varnamelen,gocritic,goerr113
+//nolint:exhaustivestruct,exhaustruct,varnamelen,gocritic,goerr113,wrapcheck
 package scan_test
 
 import (
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -22,6 +21,7 @@ type Post struct {
 	Authors []Author
 }
 
+//nolint:gochecknoglobals
 var (
 	postsResult []Post
 	postResult  Post
@@ -49,7 +49,7 @@ func scan1() ([]Post, error) {
 	return scan.All[Post](rows1(),
 		scan.Any(func(post *Post, id int64) { post.ID = id }),
 		scan.Null("No Title", func(post *Post, title string) { post.Title = title }),
-		scan.JSON(func(post *Post, authors []Author) { post.Authors = authors }),
+		scan.AnyErr(func(post *Post, authors []byte) error { return json.Unmarshal(authors, &post.Authors) }),
 	)
 }
 
@@ -267,8 +267,8 @@ func row3() *fakeRows {
 func scan3() (Post, error) {
 	return scan.One[Post](row3(),
 		scan.Any(func(post *Post, id int64) { post.ID = id }),
-		scan.Null("No Title", func(post *Post, title string) { post.Title = title }),
-		scan.JSON(func(post *Post, authors []Author) { post.Authors = authors }),
+		scan.Any(func(post *Post, title string) { post.Title = title }),
+		scan.AnyErr(func(post *Post, authors []byte) error { return json.Unmarshal(authors, &post.Authors) }),
 	)
 }
 
@@ -332,7 +332,7 @@ func TestJSONErr(t *testing.T) {
 	_, err := scan.One[Post](row3(),
 		scan.Any(func(post *Post, id int64) { post.ID = id }),
 		scan.Null("No Title", func(post *Post, title string) { post.Title = title }),
-		scan.JSON(func(post *Post, authors Author) {}),
+		scan.JSONErr(func(post *Post, authors Author) error { return nil }),
 	)
 	if err == nil {
 		t.Fail()
@@ -357,8 +357,10 @@ func TestCloseErr(t *testing.T) {
 	}
 
 	_, err := scan.All[Post](rows,
-		scan.Any(func(post *Post, id int64) { post.ID = id }),
-		scan.Null("No Title", func(post *Post, title string) { post.Title = title }),
+		//nolint:nlreturn
+		scan.AnyErr(func(post *Post, id int64) error { post.ID = id; return nil }),
+		//nolint:nlreturn
+		scan.NullErr("No Title", func(post *Post, title string) error { post.Title = title; return nil }),
 		scan.JSON(func(post *Post, authors []Author) { post.Authors = authors }),
 	)
 	if err == nil || err.Error() != "wroge/scan error: closing failed" {
@@ -459,18 +461,9 @@ func (r *fakeRows) Scan(dest ...any) error {
 
 	for i, d := range dest {
 		switch t := d.(type) {
-		case *sql.RawBytes:
-			switch s := r.data[r.index][i].(type) {
-			case sql.RawBytes:
-				*t = s
-			case []byte:
-				*t = s
-			}
 		case *[]byte:
 			switch s := r.data[r.index][i].(type) {
 			case []byte:
-				*t = s
-			case sql.RawBytes:
 				*t = s
 			}
 		case *string:
@@ -494,10 +487,6 @@ func (r *fakeRows) Scan(dest ...any) error {
 			}
 		case **[]byte:
 			switch s := r.data[r.index][i].(type) {
-			case sql.RawBytes:
-				by := []byte(s)
-
-				*t = &by
 			case []byte:
 				*t = &s
 			}
