@@ -2,6 +2,7 @@
 package scan
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 )
@@ -125,41 +126,44 @@ func doClose(rows any, wrap error) error {
 // All returns a slice of T from rows and columns.
 // Close is called automatically.
 func All[T any](rows Rows, columns ...Column[T]) ([]T, error) {
-	var (
-		err  error
-		out  []T
-		dest = make([]any, len(columns))
-	)
+	ctx := context.Background()
+	var out []T
+	err := Each[T](ctx, func(ctx context.Context, row T) error {
+		out = append(out, row)
+		return nil
+	},
+		rows, columns...)
+	return out, err
+}
 
+// Each runs f for each scanned T.
+// Close is called automatically.
+func Each[T any](ctx context.Context, f func(context.Context, T) error, rows Rows, columns ...Column[T]) error {
+	dest := make([]any, len(columns))
 	for i, column := range columns {
 		dest[i] = column.Scan()
 	}
 
-	count := 0
-
 	for rows.Next() {
-		//nolint:gocritic
-		out = append(out, *new(T))
-
-		err = rows.Scan(dest...)
-		if err != nil {
-			return nil, doClose(rows, err)
+		if err := rows.Scan(dest...); err != nil {
+			return doClose(rows, err)
 		}
 
+		var row T
 		for _, column := range columns {
-			err = column.Set(&out[count])
-			if err != nil {
-				return nil, doClose(rows, err)
+			if err := column.Set(&row); err != nil {
+				return doClose(rows, err)
 			}
 		}
-
-		count++
+		if err := f(ctx, row); err != nil {
+			return doClose(rows, err)
+		}
 	}
 
-	return out, doClose(rows, rows.Err())
+	return doClose(rows, rows.Err())
 }
 
-// All returns T from a row and columns.
+// One returns T from a row and columns.
 func One[T any](row Row, columns ...Column[T]) (T, error) {
 	var out T
 
