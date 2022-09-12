@@ -453,7 +453,7 @@ func (r *fakeRows) Next() bool {
 	return r.index < len(r.data)
 }
 
-//nolint:cyclop,funlen,gocognit
+//nolint:funlen,cyclop
 func (r *fakeRows) Scan(dest ...any) error {
 	if r.scanErr != nil {
 		return r.scanErr
