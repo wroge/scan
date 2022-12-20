@@ -46,35 +46,16 @@ func rows1() *fakeRows {
 	}
 }
 
-func scan1() ([]Post, error) {
-	return scan.All[Post](rows1(),
-		scan.Any(func(post *Post, id int64) { post.ID = id }),
-		scan.Null("No Title", func(post *Post, title string) { post.Title = title }),
-		scan.AnyErr(func(post *Post, authors []byte) error { return json.Unmarshal(authors, &post.Authors) }),
-	)
-}
-
-func scan1each() ([]Post, error) {
-	var (
-		posts []Post
-		ctx   = context.Background()
-	)
-
-	return posts, scan.Each[Post](ctx, func(ctx context.Context, p Post) error {
-		posts = append(posts, p)
-
-		return nil
-	}, rows1(),
-		scan.Any(func(post *Post, id int64) { post.ID = id }),
-		scan.Null("No Title", func(post *Post, title string) { post.Title = title }),
-		scan.AnyErr(func(post *Post, authors []byte) error { return json.Unmarshal(authors, &post.Authors) }),
-	)
+var scan1 []scan.Column[Post] = []scan.Column[Post]{
+	scan.Any(func(post *Post, id int64) { post.ID = id }),
+	scan.Null("No Title", func(post *Post, title string) { post.Title = title }),
+	scan.AnyErr(func(post *Post, authors []byte) error { return json.Unmarshal(authors, &post.Authors) }),
 }
 
 func TestExample1(t *testing.T) {
 	t.Parallel()
 
-	posts, err := scan1()
+	posts, err := scan.All(rows1(), scan1...)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,8 +70,14 @@ func TestExample1(t *testing.T) {
 
 func TestExample1Each(t *testing.T) {
 	t.Parallel()
+	ctx := context.Background()
+	var posts []Post
 
-	posts, err := scan1each()
+	err := scan.Each(ctx, func(ctx context.Context, post Post) error {
+		posts = append(posts, post)
+
+		return nil
+	}, rows1(), scan1...)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -110,7 +97,7 @@ func BenchmarkExample1WrogeScanAll(b *testing.B) {
 	)
 
 	for n := 0; n < b.N; n++ {
-		posts, err = scan1()
+		posts, err = scan.All(rows1(), scan1...)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -122,11 +109,15 @@ func BenchmarkExample1WrogeScanAll(b *testing.B) {
 func BenchmarkExample1WrogeScanEach(b *testing.B) {
 	var (
 		posts []Post
-		err   error
+		ctx   = context.Background()
 	)
 
 	for n := 0; n < b.N; n++ {
-		posts, err = scan1each()
+		err := scan.Each(ctx, func(ctx context.Context, post Post) error {
+			posts = append(posts, post)
+
+			return nil
+		}, rows1(), scan1...)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -196,58 +187,27 @@ func rows2() *fakeRows {
 	}
 }
 
-func scan2() ([]Post, error) {
-	return scan.All[Post](rows2(),
-		scan.Any(func(post *Post, id int64) { post.ID = id }),
-		scan.Null("No Title", func(post *Post, title string) { post.Title = title }),
-		scan.JSON(func(post *Post, ids []int64) {
-			post.Authors = make([]Author, len(ids))
+var scan2 []scan.Column[Post] = []scan.Column[Post]{
+	scan.Any(func(post *Post, id int64) { post.ID = id }),
+	scan.Null("No Title", func(post *Post, title string) { post.Title = title }),
+	scan.JSON(func(post *Post, ids []int64) {
+		post.Authors = make([]Author, len(ids))
 
-			for i, id := range ids {
-				post.Authors[i].ID = id
-			}
-		}),
-		scan.JSON(func(post *Post, names []string) {
-			for i, name := range names {
-				post.Authors[i].Name = name
-			}
-		}),
-	)
-}
-
-func scan2each() ([]Post, error) {
-	var (
-		posts []Post
-		ctx   = context.Background()
-	)
-
-	return posts, scan.Each[Post](ctx, func(ctx context.Context, p Post) error {
-		posts = append(posts, p)
-
-		return nil
-	},
-		rows2(),
-		scan.Any(func(post *Post, id int64) { post.ID = id }),
-		scan.Null("No Title", func(post *Post, title string) { post.Title = title }),
-		scan.JSON(func(post *Post, ids []int64) {
-			post.Authors = make([]Author, len(ids))
-
-			for i, id := range ids {
-				post.Authors[i].ID = id
-			}
-		}),
-		scan.JSON(func(post *Post, names []string) {
-			for i, name := range names {
-				post.Authors[i].Name = name
-			}
-		}),
-	)
+		for i, id := range ids {
+			post.Authors[i].ID = id
+		}
+	}),
+	scan.JSON(func(post *Post, names []string) {
+		for i, name := range names {
+			post.Authors[i].Name = name
+		}
+	}),
 }
 
 func TestExample2(t *testing.T) {
 	t.Parallel()
 
-	posts, err := scan2()
+	posts, err := scan.All(rows2(), scan2...)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -262,8 +222,14 @@ func TestExample2(t *testing.T) {
 
 func TestExample2Each(t *testing.T) {
 	t.Parallel()
+	ctx := context.Background()
+	var posts []Post
 
-	posts, err := scan2each()
+	err := scan.Each(ctx, func(ctx context.Context, post Post) error {
+		posts = append(posts, post)
+
+		return nil
+	}, rows1(), scan1...)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -283,7 +249,7 @@ func BenchmarkExample2WrogeScanAll(b *testing.B) {
 	)
 
 	for n := 0; n < b.N; n++ {
-		posts, err = scan2()
+		posts, err = scan.All(rows2(), scan2...)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -295,11 +261,15 @@ func BenchmarkExample2WrogeScanAll(b *testing.B) {
 func BenchmarkExample2WrogeScanEach(b *testing.B) {
 	var (
 		posts []Post
-		err   error
+		ctx   = context.Background()
 	)
 
 	for n := 0; n < b.N; n++ {
-		posts, err = scan2each()
+		err := scan.Each(ctx, func(ctx context.Context, post Post) error {
+			posts = append(posts, post)
+
+			return nil
+		}, rows1(), scan1...)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -375,18 +345,16 @@ func row3() *fakeRows {
 	}
 }
 
-func scan3() (Post, error) {
-	return scan.One[Post](row3(),
-		scan.Any(func(post *Post, id int64) { post.ID = id }),
-		scan.Any(func(post *Post, title string) { post.Title = title }),
-		scan.AnyErr(func(post *Post, authors []byte) error { return json.Unmarshal(authors, &post.Authors) }),
-	)
+var scan3 []scan.Column[Post] = []scan.Column[Post]{
+	scan.Any(func(post *Post, id int64) { post.ID = id }),
+	scan.Any(func(post *Post, title string) { post.Title = title }),
+	scan.AnyErr(func(post *Post, authors []byte) error { return json.Unmarshal(authors, &post.Authors) }),
 }
 
 func TestExample3(t *testing.T) {
 	t.Parallel()
 
-	post, err := scan3()
+	post, err := scan.One(row3(), scan3...)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -403,7 +371,7 @@ func BenchmarkExample3WrogeScanOne(b *testing.B) {
 	)
 
 	for n := 0; n < b.N; n++ {
-		post, err = scan3()
+		post, err = scan.One(row3(), scan3...)
 		if err != nil {
 			b.Fatal(err)
 		}

@@ -33,11 +33,13 @@ func main() {
 		(1, null, JSON_ARRAY(JSON_OBJECT('id', 1, 'name', 'Jim'), JSON_OBJECT('id', 2, 'name', 'Tim'))),
 		(2, 'Post Two', JSON_ARRAY(JSON_OBJECT('id', 2, 'name', 'Tim'))))`)
 
-	posts, _ = scan.All[Post](rows,
+	columns := []scan.Column[Post]{
 		scan.Any(func(post *Post, id int64) { post.ID = id }),
 		scan.Null("No Title", func(post *Post, title string) { post.Title = title }),
 		scan.AnyErr(func(post *Post, authors []byte) error { return json.Unmarshal(authors, &post.Authors) }),
-	)
+	}
+
+	posts, _ = scan.All(rows, columns...)
 
 	fmt.Println(posts)
 	// [{1 No Title [{1 Jim} {2 Tim}]} {2 Post Two [{2 Tim}]}]
@@ -46,7 +48,7 @@ func main() {
 		(1, null, JSON_ARRAY(1, 2), JSON_ARRAY('Jim','Tim')),
 		(2, 'Post Two', JSON_ARRAY(2), JSON_ARRAY('Tim')))`)
 
-	posts, _ = scan.All[Post](rows,
+	columns = []scan.Column[Post]{
 		scan.Any(func(post *Post, id int64) { post.ID = id }),
 		scan.Null("No Title", func(post *Post, title string) { post.Title = title }),
 		scan.JSON(func(post *Post, ids []int64) {
@@ -61,7 +63,9 @@ func main() {
 				post.Authors[i].Name = name
 			}
 		}),
-	)
+	}
+
+	posts, _ = scan.All(rows, columns...)
 
 	fmt.Println(posts)
 	// [{1 No Title [{1 Jim} {2 Tim}]} {2 Post Two [{2 Tim}]}]
@@ -73,11 +77,13 @@ func main() {
 		`SELECT 1, 'Post One', JSON_ARRAY(JSON_OBJECT('id', 1, 'name', 'Jim'), 
 			JSON_OBJECT('id', 2, 'name', 'Tim'))`)
 
-	post, _ = scan.One[Post](row,
+	columns = []scan.Column[Post]{
 		scan.Any(func(post *Post, id int64) { post.ID = id }),
 		scan.Any(func(post *Post, title string) { post.Title = title }),
 		scan.AnyErr(func(post *Post, authors []byte) error { return json.Unmarshal(authors, &post.Authors) }),
-	)
+	}
+
+	post, _ = scan.One(row, columns...)
 
 	fmt.Println(post)
 	// {1 Post One [{1 Jim} {2 Tim}]}

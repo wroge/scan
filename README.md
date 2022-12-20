@@ -39,11 +39,13 @@ rows, _ = db.Query(`SELECT * FROM (VALUES
 	(1, null, JSON_ARRAY(JSON_OBJECT('id', 1, 'name', 'Jim'), JSON_OBJECT('id', 2, 'name', 'Tim'))),
 	(2, 'Post Two', JSON_ARRAY(JSON_OBJECT('id', 2, 'name', 'Tim'))))`)
 
-posts, _ = scan.All[Post](rows,
+columns := []scan.Column[Post]{
 	scan.Any(func(post *Post, id int64) { post.ID = id }),
 	scan.Null("No Title", func(post *Post, title string) { post.Title = title }),
 	scan.AnyErr(func(post *Post, authors []byte) error { return json.Unmarshal(authors, &post.Authors) }),
-)
+}
+
+posts, _ = scan.All(rows, columns...)
 // [{1 No Title [{1 Jim} {2 Tim}]} {2 Post Two [{2 Tim}]}]
 ```
 
@@ -55,7 +57,7 @@ rows, _ = db.Query(`SELECT * FROM (VALUES
 	(1, null, JSON_ARRAY(1, 2), JSON_ARRAY('Jim','Tim')),
 	(2, 'Post Two', JSON_ARRAY(2), JSON_ARRAY('Tim')))`)
 
-posts, _ = scan.All[Post](rows,
+columns = []scan.Column[Post]{
 	scan.Any(func(post *Post, id int64) { post.ID = id }),
 	scan.Null("No Title", func(post *Post, title string) { post.Title = title }),
 	scan.JSON(func(post *Post, ids []int64) {
@@ -70,7 +72,9 @@ posts, _ = scan.All[Post](rows,
 			post.Authors[i].Name = name
 		}
 	}),
-)
+}
+
+posts, _ = scan.All(rows, columns...)
 // [{1 No Title [{1 Jim} {2 Tim}]} {2 Post Two [{2 Tim}]}]
 ```
 
@@ -82,11 +86,13 @@ row = db.QueryRow(
 	`SELECT 1, 'Post One', JSON_ARRAY(JSON_OBJECT('id', 1, 'name', 'Jim'), 
 		JSON_OBJECT('id', 2, 'name', 'Tim'))`)
 
-post, _ = scan.One[Post](row,
+columns = []scan.Column[Post]{
 	scan.Any(func(post *Post, id int64) { post.ID = id }),
 	scan.Any(func(post *Post, title string) { post.Title = title }),
 	scan.AnyErr(func(post *Post, authors []byte) error { return json.Unmarshal(authors, &post.Authors) }),
-)
+}
+
+post, _ = scan.One(row, columns...)
 // {1 Post One [{1 Jim} {2 Tim}]}
 ```
 
@@ -94,31 +100,25 @@ post, _ = scan.One[Post](row,
 
 - With ```Each[T](ctx, func(ctx, T) error, Rows, ...Column[T])``` it is possible to scan large number of rows.
 
-## Data Races
-
-- Each 'Column' scans its value in a pointer. 
-- Thus it is not possible to use them in parallel processes. 
-- For more information see this [issue](https://github.com/wroge/scan/issues/2).
-
 ## Benchmarks
 
 - ```Standard``` scans rows by hand.
 - Criticism and possible improvements to the [benchmarks and tests](https://github.com/wroge/scan/blob/main/scan_test.go) are very welcome.
 
 ```sh
-➜ go test -bench=. -benchtime=10s -benchmem                                               
+➜ go test -bench=. -benchtime=10s -benchmem 
 goos: darwin
 goarch: amd64
 pkg: github.com/wroge/scan
 cpu: Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
-BenchmarkExample1WrogeScanAll-8           663880             17633 ns/op            6984 B/op        139 allocs/op
-BenchmarkExample1WrogeScanEach-8          647938             17307 ns/op            7464 B/op        149 allocs/op
-BenchmarkExample1Standard-8               770737             14474 ns/op            5576 B/op        112 allocs/op
-BenchmarkExample2WrogeScanAll-8           697645             15928 ns/op            9056 B/op        204 allocs/op
-BenchmarkExample2WrogeScanEach-8          672688             16484 ns/op            9536 B/op        214 allocs/op
-BenchmarkExample2Standard-8               830355             12990 ns/op            9677 B/op        117 allocs/op
-BenchmarkExample3WrogeScanOne-8          6083386              2056 ns/op             816 B/op         21 allocs/op
-BenchmarkExample3Standard-8              7549023              1591 ns/op             480 B/op         12 allocs/op
+BenchmarkExample1WrogeScanAll-8           677887             17204 ns/op            6936 B/op        137 allocs/op
+BenchmarkExample1WrogeScanEach-8          602307             18989 ns/op            8421 B/op        142 allocs/op
+BenchmarkExample1Standard-8               784482             14793 ns/op            5576 B/op        112 allocs/op
+BenchmarkExample2WrogeScanAll-8           696784             16011 ns/op            8928 B/op        198 allocs/op
+BenchmarkExample2WrogeScanEach-8          608296             17827 ns/op            8396 B/op        142 allocs/op
+BenchmarkExample2Standard-8               938880             12276 ns/op            9556 B/op        117 allocs/op
+BenchmarkExample3WrogeScanOne-8          5731876              2136 ns/op             816 B/op         20 allocs/op
+BenchmarkExample3Standard-8              7703990              1606 ns/op             480 B/op         12 allocs/op
 PASS
-ok      github.com/wroge/scan   98.016s
+ok      github.com/wroge/scan   100.224s
 ```

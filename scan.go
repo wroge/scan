@@ -20,6 +20,7 @@ type Rows interface {
 // Column provides a stable pointer via Scan, so that
 // Set can access the value and set it into *T.
 type Column[T any] interface {
+	Clone() Column[T]
 	Scan() any
 	Set(*T) error
 }
@@ -29,6 +30,12 @@ type AnyColumn[T, V any] struct {
 	Setter func(each *T, value V) error
 
 	scan V
+}
+
+func (c *AnyColumn[T, V]) Clone() Column[T] {
+	return &AnyColumn[T, V]{
+		Setter: c.Setter,
+	}
 }
 
 func (c *AnyColumn[T, V]) Scan() any {
@@ -127,13 +134,15 @@ func doClose(rows any, wrap error) error {
 // Close is called automatically.
 func All[T any](rows Rows, columns ...Column[T]) ([]T, error) {
 	var (
-		err  error
-		out  []T
-		dest = make([]any, len(columns))
+		err   error
+		out   []T
+		dest  = make([]any, len(columns))
+		clone = make([]Column[T], len(columns))
 	)
 
 	for i, column := range columns {
-		dest[i] = column.Scan()
+		clone[i] = column.Clone()
+		dest[i] = clone[i].Scan()
 	}
 
 	count := 0
@@ -147,7 +156,7 @@ func All[T any](rows Rows, columns ...Column[T]) ([]T, error) {
 			return nil, doClose(rows, err)
 		}
 
-		for _, column := range columns {
+		for _, column := range clone {
 			err = column.Set(&out[count])
 			if err != nil {
 				return nil, doClose(rows, err)
@@ -164,12 +173,14 @@ func All[T any](rows Rows, columns ...Column[T]) ([]T, error) {
 // Close is called automatically.
 func Each[T any](ctx context.Context, each func(context.Context, T) error, rows Rows, columns ...Column[T]) error {
 	var (
-		err  error
-		dest = make([]any, len(columns))
+		err   error
+		dest  = make([]any, len(columns))
+		clone = make([]Column[T], len(columns))
 	)
 
 	for i, column := range columns {
-		dest[i] = column.Scan()
+		clone[i] = column.Clone()
+		dest[i] = clone[i].Scan()
 	}
 
 	for rows.Next() {
@@ -178,7 +189,7 @@ func Each[T any](ctx context.Context, each func(context.Context, T) error, rows 
 		}
 
 		var row T
-		for _, column := range columns {
+		for _, column := range clone {
 			if err = column.Set(&row); err != nil {
 				return doClose(rows, err)
 			}
@@ -197,9 +208,11 @@ func One[T any](row Row, columns ...Column[T]) (T, error) {
 	var out T
 
 	dest := make([]any, len(columns))
+	clone := make([]Column[T], len(columns))
 
 	for i, column := range columns {
-		dest[i] = column.Scan()
+		clone[i] = column.Clone()
+		dest[i] = clone[i].Scan()
 	}
 
 	err := row.Scan(dest...)
@@ -207,7 +220,7 @@ func One[T any](row Row, columns ...Column[T]) (T, error) {
 		return out, fmt.Errorf("wroge/scan error: %w", err)
 	}
 
-	for _, column := range columns {
+	for _, column := range clone {
 		err = column.Set(&out)
 		if err != nil {
 			return out, fmt.Errorf("wroge/scan error: %w", err)
