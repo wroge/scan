@@ -96,7 +96,9 @@ post, _ = scan.One[Post](row,
 
 ## Data Races
 
-Each 'Column' scans its value in a pointer. Thus it is not possible to use them in parallel processes. For more information see this [issue](https://github.com/wroge/scan/issues/2).
+- Each 'Column' scans its value in a pointer. 
+- Thus it is not possible to use them in parallel processes. 
+- For more information see this [issue](https://github.com/wroge/scan/issues/2).
 
 ## Benchmarks
 
