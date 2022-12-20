@@ -94,6 +94,10 @@ post, _ = scan.One[Post](row,
 
 - With ```Each[T](ctx, func(ctx, T) error, Rows, ...Column[T])``` it is possible to scan large number of rows.
 
+## Data Races
+
+Each 'Column' scans its value in a pointer. Thus it is not possible to use them in parallel processes. For more information see this [issue](https://github.com/wroge/scan/issues/2).
+
 ## Benchmarks
 
 - ```Standard``` scans rows by hand.
