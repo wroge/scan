@@ -111,14 +111,14 @@ goos: darwin
 goarch: amd64
 pkg: github.com/wroge/scan
 cpu: Intel(R) Core(TM) i7-7820HQ CPU @ 2.90GHz
-BenchmarkExample1WrogeScanAll-8           677887             17204 ns/op            6936 B/op        137 allocs/op
-BenchmarkExample1WrogeScanEach-8          602307             18989 ns/op            8421 B/op        142 allocs/op
-BenchmarkExample1Standard-8               784482             14793 ns/op            5576 B/op        112 allocs/op
-BenchmarkExample2WrogeScanAll-8           696784             16011 ns/op            8928 B/op        198 allocs/op
-BenchmarkExample2WrogeScanEach-8          608296             17827 ns/op            8396 B/op        142 allocs/op
-BenchmarkExample2Standard-8               938880             12276 ns/op            9556 B/op        117 allocs/op
-BenchmarkExample3WrogeScanOne-8          5731876              2136 ns/op             816 B/op         20 allocs/op
-BenchmarkExample3Standard-8              7703990              1606 ns/op             480 B/op         12 allocs/op
+BenchmarkExample1WrogeScanAll-8           635017             18906 ns/op            6936 B/op        137 allocs/op
+BenchmarkExample1WrogeScanEach-8          564099             21634 ns/op            8590 B/op        142 allocs/op
+BenchmarkExample1Standard-8               714564             16244 ns/op            5576 B/op        112 allocs/op
+BenchmarkExample2WrogeScanAll-8           689020             16916 ns/op            8928 B/op        198 allocs/op
+BenchmarkExample2WrogeScanEach-8          590502             20411 ns/op            8471 B/op        142 allocs/op
+BenchmarkExample2Standard-8               922117             13368 ns/op            9640 B/op        117 allocs/op
+BenchmarkExample3WrogeScanOne-8          5183390              2435 ns/op             816 B/op         20 allocs/op
+BenchmarkExample3Standard-8              6530119              1922 ns/op             480 B/op         12 allocs/op
 PASS
-ok      github.com/wroge/scan   100.224s
+ok      github.com/wroge/scan   105.128s
 ```
