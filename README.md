@@ -7,6 +7,7 @@
 [![GitHub tag (latest SemVer)](https://img.shields.io/github/tag/wroge/scan.svg?style=social)](https://github.com/wroge/scan/tags)
 
 - Don't write the same code over and over again.
+- Define the mapping (Columns) in one place.
 - Any rows implementation is supported (*sql.Rows, pgx.Rows, ...).
 - Auto closing.
 - No reflection, only generics.
@@ -17,7 +18,7 @@
 ## Examples
 
 - ```All[T](Rows, ...Column[T])``` scans rows into ```[]T``` and performs the closing.
-- A Column provides a stable, scannable pointer, which can be set via ```Set(*T)``` after each scan.
+- A Column provides a reusable, stable, scannable pointer, which can be set via ```Set(*T)``` after each scan.
 - ```AnyErr``` is a type-safe Column with a pointer to ```V``` and a setter function ```func(*T, V)```.
 - ```Any``` is like ```AnyErr```, but without the returned error.
 - ```Null``` scans nullable values and uses a default if the scanned value is nil.
