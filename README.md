@@ -18,7 +18,6 @@
 ## Examples
 
 - ```All[T](Rows, ...Column[T])``` scans rows into ```[]T``` and performs the closing.
-- A Column provides a reusable, scannable pointer.
 - ```AnyErr``` is a type-safe Column with a pointer to ```V``` and a setter function ```func(*T, V)```.
 - ```Any``` is like ```AnyErr```, but without the returned error.
 - ```Null``` scans nullable values and uses a default if the scanned value is nil.
