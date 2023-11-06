@@ -8,12 +8,6 @@
 
 - Don't write the same code over and over again.
 - Define the mapping (Columns) in one place.
-- Any rows implementation is supported (*sql.Rows, pgx.Rows, ...).
-- Auto closing.
-- No reflection, only generics.
-- Aggregation of rows is not a goal of this module and should be performed in the database.
-- [wroge/superbasic](https://github.com/wroge/superbasic) is a nice module for query building.
-- [Benchmarks](#benchmarks).
 
 ## Examples
 

@@ -1,245 +1,193 @@
-//nolint:ireturn,wrapcheck
+//nolint:wrapcheck,nilerr,ireturn,structcheck,nonamedreturns,golint
 package scan
 
 import (
-	"context"
+	"database/sql"
 	"encoding/json"
-	"fmt"
+	"errors"
 )
 
-type Row interface {
-	Scan(dest ...any) error
-}
+var (
+	ErrNoRows      = errors.New("sql: no rows in result set")
+	ErrTooManyRows = errors.New("sql: too many rows in result set")
+)
 
 type Rows interface {
-	Err() error
 	Next() bool
-	Row
+	Scan(dest ...any) error
+	Columns() ([]string, error)
+	Err() error
+	Close() error
 }
 
-// Column provides a stable pointer via Scan, so that
-// Set can access the value and set it into *T.
-type Column[T any] interface {
-	Clone() Column[T]
-	Scan() any
-	Set(*T) error
+type Scanner[T any] interface {
+	Scan() (any, func(*T) error)
 }
 
-// AnyColumn is a typesafe Column to Scan and Set V for each Row.
-type AnyColumn[T, V any] struct {
-	Setter func(each *T, value V) error
+type Func[T, V any] func(*T, V) error
 
-	scan V
-}
+func (f Func[T, V]) Scan() (any, func(*T) error) {
+	var v V
 
-func (c *AnyColumn[T, V]) Clone() Column[T] {
-	return &AnyColumn[T, V]{
-		Setter: c.Setter,
+	return &v, func(t *T) error {
+		return f(t, v)
 	}
 }
 
-func (c *AnyColumn[T, V]) Scan() any {
-	return &c.scan
-}
-
-func (c *AnyColumn[T, V]) Set(each *T) error {
-	return c.Setter(each, c.scan)
-}
-
-// AnyErr produces a Column.
-func AnyErr[T, V any](setter func(*T, V) error) *AnyColumn[T, V] {
-	return &AnyColumn[T, V]{
-		Setter: setter,
-	}
-}
-
-// Any is like AnyErr but omits the error.
-func Any[T, V any](setter func(*T, V)) *AnyColumn[T, V] {
-	return AnyErr(func(each *T, value V) error {
-		setter(each, value)
+func Any[T, V any](scan func(*T, V)) Func[T, V] {
+	return func(t *T, v V) error {
+		scan(t, v)
 
 		return nil
-	})
+	}
 }
 
-// NullErr produces a Column that can scan nullable values and
-// sets a default value if its null.
-func NullErr[T, V any](def V, setter func(*T, V) error) *AnyColumn[T, *V] {
-	return AnyErr(func(each *T, value *V) error {
-		if value == nil {
-			return setter(each, def)
-		}
-
-		return setter(each, *value)
-	})
-}
-
-// Null is like NullErr but omits the error.
-func Null[T, V any](def V, setter func(*T, V)) *AnyColumn[T, *V] {
-	return Any(func(each *T, value *V) {
-		if value == nil {
-			setter(each, def)
+func Null[T, V any](def V, scan func(*T, V)) Func[T, *V] {
+	return func(t *T, v *V) error {
+		if v != nil {
+			scan(t, *v)
 		} else {
-			setter(each, *value)
+			scan(t, def)
 		}
-	})
+
+		return nil
+	}
 }
 
-// JSONErr produces a Column that scans json into bytes and
-// unmarshals it into V.
-func JSONErr[T, V any](setter func(*T, V) error) *AnyColumn[T, []byte] {
-	return AnyErr(func(each *T, b []byte) error {
+func JSON[T, V any](scan func(*T, V)) Func[T, []byte] {
+	return func(typ *T, b []byte) error {
 		var value V
 
 		err := json.Unmarshal(b, &value)
 		if err != nil {
-			return err
+			return nil
 		}
 
-		return setter(each, value)
-	})
-}
-
-// JSON is like JSONErr but omits the error.
-func JSON[T, V any](setter func(*T, V)) *AnyColumn[T, []byte] {
-	return JSONErr(func(each *T, value V) error {
-		setter(each, value)
+		scan(typ, value)
 
 		return nil
-	})
+	}
 }
 
-func doClose(rows any, wrap error) error {
-	switch r := rows.(type) {
-	case interface{ Close() }:
-		r.Close()
-	case interface{ Close() error }:
-		err := r.Close()
+func First[T any](rows Rows, columns map[string]Scanner[T]) (t T, err error) {
+	iter, err := Iter(rows, columns)
+	if err != nil {
+		return t, err
+	}
+
+	if !iter.Next() {
+		return t, errors.Join(iter.Close(), sql.ErrNoRows)
+	}
+
+	return t, errors.Join(iter.Scan(&t), iter.Err(), iter.Close())
+}
+
+func One[T any](rows Rows, columns map[string]Scanner[T]) (t T, err error) {
+	iter, err := Iter(rows, columns)
+	if err != nil {
+		return t, err
+	}
+
+	if !iter.Next() {
+		return t, errors.Join(iter.Close(), sql.ErrNoRows, ErrNoRows)
+	}
+
+	err = iter.Scan(&t)
+	if err != nil {
+		return t, errors.Join(err, iter.Err())
+	}
+
+	if iter.Next() {
+		return t, errors.Join(iter.Close(), ErrTooManyRows)
+	}
+
+	return t, errors.Join(iter.Err(), iter.Close())
+}
+
+func All[T any](rows Rows, columns map[string]Scanner[T]) ([]T, error) {
+	iter, err := Iter(rows, columns)
+	if err != nil {
+		return nil, err
+	}
+
+	var (
+		list  []T
+		index = 0
+	)
+
+	for iter.Next() {
+		list = append(list, *new(T))
+
+		err = iter.Scan(&list[index])
 		if err != nil {
-			return CloseError{
-				Err:  err,
-				Wrap: wrap,
-			}
+			return nil, errors.Join(err, iter.Close())
+		}
+
+		index++
+	}
+
+	return list, errors.Join(iter.Err(), iter.Close())
+}
+
+func Iter[T any](rows Rows, columns map[string]Scanner[T]) (Iterator[T], error) {
+	names, err := rows.Columns()
+	if err != nil {
+		return Iterator[T]{}, errors.Join(err, rows.Close())
+	}
+
+	var (
+		dest     = make([]any, len(names))
+		scanners = make([]func(*T) error, len(names))
+		ignore   any
+	)
+
+	for i, n := range names {
+		if s, ok := columns[n]; ok {
+			dest[i], scanners[i] = s.Scan()
+		} else {
+			dest[i] = &ignore
 		}
 	}
 
-	if wrap != nil {
-		return fmt.Errorf("wroge/scan error: %w", wrap)
+	return Iterator[T]{
+		rows:     rows,
+		dest:     dest,
+		scanners: scanners,
+	}, nil
+}
+
+type Iterator[T any] struct {
+	rows     Rows
+	dest     []any
+	scanners []func(*T) error
+}
+
+func (i Iterator[T]) Close() error {
+	return i.rows.Close()
+}
+
+func (i Iterator[T]) Err() error {
+	return i.rows.Err()
+}
+
+func (i Iterator[T]) Next() bool {
+	return i.rows.Next()
+}
+
+func (i Iterator[T]) Scan(typ *T) error {
+	err := i.rows.Scan(i.dest...)
+	if err != nil {
+		return err
+	}
+
+	for _, s := range i.scanners {
+		if s != nil {
+			err = s(typ)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	return nil
-}
-
-// All returns a slice of T from rows and columns.
-// Close is called automatically.
-func All[T any](rows Rows, columns ...Column[T]) ([]T, error) {
-	var (
-		err   error
-		out   []T
-		dest  = make([]any, len(columns))
-		clone = make([]Column[T], len(columns))
-	)
-
-	for i, column := range columns {
-		clone[i] = column.Clone()
-		dest[i] = clone[i].Scan()
-	}
-
-	count := 0
-
-	for rows.Next() {
-		//nolint:gocritic
-		out = append(out, *new(T))
-
-		err = rows.Scan(dest...)
-		if err != nil {
-			return nil, doClose(rows, err)
-		}
-
-		for _, column := range clone {
-			err = column.Set(&out[count])
-			if err != nil {
-				return nil, doClose(rows, err)
-			}
-		}
-
-		count++
-	}
-
-	return out, doClose(rows, rows.Err())
-}
-
-// Each runs each function for each scanned T.
-// Close is called automatically.
-func Each[T any](ctx context.Context, each func(context.Context, T) error, rows Rows, columns ...Column[T]) error {
-	var (
-		err   error
-		dest  = make([]any, len(columns))
-		clone = make([]Column[T], len(columns))
-	)
-
-	for i, column := range columns {
-		clone[i] = column.Clone()
-		dest[i] = clone[i].Scan()
-	}
-
-	for rows.Next() {
-		if err = rows.Scan(dest...); err != nil {
-			return doClose(rows, err)
-		}
-
-		var row T
-		for _, column := range clone {
-			if err = column.Set(&row); err != nil {
-				return doClose(rows, err)
-			}
-		}
-
-		if err = each(ctx, row); err != nil {
-			return doClose(rows, err)
-		}
-	}
-
-	return doClose(rows, rows.Err())
-}
-
-// One returns T from a row and columns.
-func One[T any](row Row, columns ...Column[T]) (T, error) {
-	var out T
-
-	dest := make([]any, len(columns))
-	clone := make([]Column[T], len(columns))
-
-	for i, column := range columns {
-		clone[i] = column.Clone()
-		dest[i] = clone[i].Scan()
-	}
-
-	err := row.Scan(dest...)
-	if err != nil {
-		return out, fmt.Errorf("wroge/scan error: %w", err)
-	}
-
-	for _, column := range clone {
-		err = column.Set(&out)
-		if err != nil {
-			return out, fmt.Errorf("wroge/scan error: %w", err)
-		}
-	}
-
-	return out, nil
-}
-
-// CloseError is returned if the closing of rows fails.
-type CloseError struct {
-	Err  error
-	Wrap error
-}
-
-func (ce CloseError) Error() string {
-	return fmt.Sprintf("wroge/scan error: %s", ce.Err)
-}
-
-func (ce CloseError) Unwrap() error {
-	return ce.Wrap
 }
