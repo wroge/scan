@@ -79,6 +79,16 @@ func rows5() *fakeRows {
 	}
 }
 
+func rows6() *fakeRows {
+	return &fakeRows{
+		index:   -1,
+		columns: []string{"id", "title", "authors"},
+		data: [][]any{
+			{1, nil, []byte(`[{"id": 1, name: "Jim"},{"id": 2, "name": "Tim"}]`)},
+		},
+	}
+}
+
 var columns1 = map[string]scan.Scanner[Post]{
 	"id":      scan.Any(func(post *Post, id int64) { post.ID = id }),
 	"title":   scan.Null("No Title", func(post *Post, title string) { post.Title = title }),
@@ -150,6 +160,15 @@ func TestOneError2(t *testing.T) {
 	}
 }
 
+func TestOneError3(t *testing.T) {
+	t.Parallel()
+
+	_, err := scan.One[Post](rows4(), columns1)
+	if err == nil {
+		t.Fatal(err)
+	}
+}
+
 func TestAllError(t *testing.T) {
 	t.Parallel()
 
@@ -183,6 +202,15 @@ func TestFirstError2(t *testing.T) {
 	_, err := scan.First[Post](rows4(), columns1)
 	if err == nil {
 		t.Fatal("error is nil")
+	}
+}
+
+func TestFirstError3(t *testing.T) {
+	t.Parallel()
+
+	post, err := scan.First[Post](rows6(), columns1)
+	if err == nil {
+		t.Fatal("error is nil", post)
 	}
 }
 

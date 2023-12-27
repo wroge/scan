@@ -6,7 +6,7 @@
 // Users can create iterators using the Iter function, and then use the provided methods like All, One, or First for
 // different use cases.
 //
-//nolint:wrapcheck,nilerr,ireturn,structcheck,golint
+//nolint:wrapcheck,ireturn,structcheck,golint
 package scan
 
 import (
@@ -76,7 +76,7 @@ func JSON[T, V any](scan func(*T, V)) Func[T, []byte] {
 
 		err := json.Unmarshal(b, &value)
 		if err != nil {
-			return nil
+			return err
 		}
 
 		scan(typ, value)
