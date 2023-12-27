@@ -49,9 +49,44 @@ func rows2() *fakeRows {
 	}
 }
 
+//nolint:goerr113
+func rows3() *fakeRows {
+	return &fakeRows{
+		index:      -1,
+		columnsErr: fmt.Errorf("columns error"),
+		columns:    []string{"id", "title", "authors"},
+		data:       [][]any{},
+	}
+}
+
+//nolint:goerr113
+func rows4() *fakeRows {
+	return &fakeRows{
+		index:   -1,
+		scanErr: fmt.Errorf("scan error"),
+		columns: []string{"id", "title", "authors"},
+		data: [][]any{
+			{1, nil, []byte(`[{"id": 1, "name": "Jim"},{"id": 2, "name": "Tim"}]`)},
+		},
+	}
+}
+
+func rows5() *fakeRows {
+	return &fakeRows{
+		index:   -1,
+		columns: []string{"id", "title", "authors"},
+		data:    [][]any{},
+	}
+}
+
 var columns1 = map[string]scan.Scanner[Post]{
 	"id":      scan.Any(func(post *Post, id int64) { post.ID = id }),
 	"title":   scan.Null("No Title", func(post *Post, title string) { post.Title = title }),
+	"authors": scan.JSON(func(post *Post, authors []Author) { post.Authors = authors }),
+}
+
+var columns2 = map[string]scan.Scanner[Post]{
+	"id":      scan.Any(func(post *Post, id int64) { post.ID = id }),
 	"authors": scan.JSON(func(post *Post, authors []Author) { post.Authors = authors }),
 }
 
@@ -87,12 +122,12 @@ func TestFirst(t *testing.T) {
 func TestOne(t *testing.T) {
 	t.Parallel()
 
-	post, err := scan.First[Post](rows2(), columns1)
+	post, err := scan.First[Post](rows2(), columns2)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if fmt.Sprint(post) != `{1 No Title [{1 Jim} {2 Tim}]}` {
+	if fmt.Sprint(post) != `{1  [{1 Jim} {2 Tim}]}` {
 		t.Fatal(post)
 	}
 }
@@ -106,17 +141,63 @@ func TestOneError(t *testing.T) {
 	}
 }
 
+func TestOneError2(t *testing.T) {
+	t.Parallel()
+
+	_, err := scan.One[Post](rows5(), columns1)
+	if !errors.Is(err, scan.ErrNoRows) {
+		t.Fatal(err)
+	}
+}
+
+func TestAllError(t *testing.T) {
+	t.Parallel()
+
+	_, err := scan.All[Post](rows3(), columns1)
+	if err == nil {
+		t.Fatal("error is nil")
+	}
+}
+
+func TestFirstError(t *testing.T) {
+	t.Parallel()
+
+	_, err := scan.First[Post](rows3(), columns1)
+	if err == nil {
+		t.Fatal("error is nil")
+	}
+}
+
+func TestAllError2(t *testing.T) {
+	t.Parallel()
+
+	_, err := scan.All[Post](rows4(), columns1)
+	if err == nil {
+		t.Fatal("error is nil")
+	}
+}
+
+func TestFirstError2(t *testing.T) {
+	t.Parallel()
+
+	_, err := scan.First[Post](rows4(), columns1)
+	if err == nil {
+		t.Fatal("error is nil")
+	}
+}
+
 type fakeRows struct {
-	closeErr error
-	scanErr  error
-	err      error
-	index    int
-	columns  []string
-	data     [][]any
+	columnsErr error
+	closeErr   error
+	scanErr    error
+	err        error
+	index      int
+	columns    []string
+	data       [][]any
 }
 
 func (r *fakeRows) Columns() ([]string, error) {
-	return r.columns, nil
+	return r.columns, r.columnsErr
 }
 
 func (r *fakeRows) Close() error {
