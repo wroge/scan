@@ -48,7 +48,7 @@ post, err := scan.First(rows, columns)
 post, err := scan.One(rows, columns)
 
 // Iterator
-iter, err := scan.Iter[Post](rows1(), columns1)
+iter, err := scan.Iter(rows, columns)
 
 defer iter.Close()
 
