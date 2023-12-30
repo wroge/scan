@@ -35,8 +35,28 @@ var columns = scan.Columns[Post]{
 }
 
 rows, err := db.Query("SELECT ...")
-// handle error
+// always handle error
 
+// All
 posts, err := scan.All(rows, columns)
-// handle error
+
+// First
+post, err := scan.First(rows, columns)
+
+// One
+post, err := scan.One(rows, columns)
+
+// Iterator
+iter, err := scan.Iter[Post](rows1(), columns1)
+
+defer iter.Close()
+
+for iter.Next() {
+	var post2 Post 
+	// Scan into existing value
+	err = iter.Scan(&post2)
+
+	// Or return a new value
+	post, err := iter.Value()
+}
 ```

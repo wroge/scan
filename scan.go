@@ -203,6 +203,13 @@ func (i Iterator[T]) Scan(typ *T) error {
 	return nil
 }
 
+// Value uses the Scan method to return T.
+func (i Iterator[T]) Value() (T, error) {
+	var t T
+
+	return t, i.Scan(&t)
+}
+
 // All retrieves all rows from the iterator, scans them into a slice of type T, and closes the iterator.
 // It returns the populated slice and any encountered error during scanning or closing.
 // The method efficiently handles errors by using error accumulation and ensures proper resource cleanup.
