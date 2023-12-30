@@ -7,6 +7,7 @@
 [![GitHub tag (latest SemVer)](https://img.shields.io/github/tag/wroge/scan.svg?style=social)](https://github.com/wroge/scan/tags)
 
 - Don't write the same code over and over again.
+- Auto closing.
 - Define the mapping (Columns) in one place.
 
 ## Example
