@@ -24,9 +24,13 @@ type Post struct {
 	Authors []Author
 }
 
-var columns = map[string]scan.Scanner[Post]{
+var columns = scan.Columns[Post]{
+	// Any value supported by your database driver can be used.
 	"id":      scan.Any(func(p *Post, id int64) { p.ID = id }),
+	// Nullable data is scanned into a pointer (*string).
+	// If pointer is nil, the default value is used.
 	"title":   scan.Null("default value", func(p *Post, title string) { p.Title = title }),
+	// JSON data is scanned into bytes and unmarshalled into []Author.
 	"authors": scan.JSON(func(p *Post, authors []Author) { p.Authors = authors }),
 }
 
@@ -34,4 +38,5 @@ rows, err := db.Query("SELECT ...")
 // handle error
 
 posts, err := scan.All(rows, columns)
+// handle error
 ```

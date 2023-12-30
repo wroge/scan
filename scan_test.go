@@ -89,13 +89,13 @@ func rows6() *fakeRows {
 	}
 }
 
-var columns1 = map[string]scan.Scanner[Post]{
+var columns1 = scan.Columns[Post]{
 	"id":      scan.Any(func(post *Post, id int64) { post.ID = id }),
 	"title":   scan.Null("No Title", func(post *Post, title string) { post.Title = title }),
 	"authors": scan.JSON(func(post *Post, authors []Author) { post.Authors = authors }),
 }
 
-var columns2 = map[string]scan.Scanner[Post]{
+var columns2 = scan.Columns[Post]{
 	"id":      scan.Any(func(post *Post, id int64) { post.ID = id }),
 	"authors": scan.JSON(func(post *Post, authors []Author) { post.Authors = authors }),
 }

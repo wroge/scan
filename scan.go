@@ -85,11 +85,14 @@ func JSON[T, V any](scan func(*T, V)) Func[T, []byte] {
 	}
 }
 
+// Columns are used by the utility functions.
+type Columns[T any] map[string]Scanner[T]
+
 // First retrieves the first row from the iterator, scans it into a value of type T, and closes the iterator.
 // It returns the scanned value and any encountered error during scanning, closing, or if no rows are found.
 // The method handles errors gracefully by using error accumulation and specifically identifies the case
 // of no rows found using the sql.ErrNoRows error.
-func First[T any](rows Rows, columns map[string]Scanner[T]) (T, error) {
+func First[T any](rows Rows, columns Columns[T]) (T, error) {
 	var t T
 
 	iter, err := Iter(rows, columns)
@@ -104,7 +107,7 @@ func First[T any](rows Rows, columns map[string]Scanner[T]) (T, error) {
 // It returns the scanned value and any encountered error during scanning, closing, or if no rows are found.
 // The method handles errors gracefully by using error accumulation and provides specific error types for
 // cases such as no rows found or multiple rows encountered.
-func One[T any](rows Rows, columns map[string]Scanner[T]) (T, error) {
+func One[T any](rows Rows, columns Columns[T]) (T, error) {
 	var t T
 
 	iter, err := Iter(rows, columns)
@@ -118,7 +121,7 @@ func One[T any](rows Rows, columns map[string]Scanner[T]) (T, error) {
 // All retrieves all rows from the iterator, scans them into a slice of type T, and closes the iterator.
 // It returns the populated slice and any encountered error during scanning or closing.
 // The method efficiently handles errors by using error accumulation and ensures proper resource cleanup.
-func All[T any](rows Rows, columns map[string]Scanner[T]) ([]T, error) {
+func All[T any](rows Rows, columns Columns[T]) ([]T, error) {
 	iter, err := Iter(rows, columns)
 	if err != nil {
 		return nil, err
@@ -130,7 +133,7 @@ func All[T any](rows Rows, columns map[string]Scanner[T]) ([]T, error) {
 // Iter creates a new iterator for the given SQL rows and a map of column names to custom scanners.
 // It returns the initialized iterator and any encountered error during column retrieval or iterator creation.
 // The method efficiently handles errors by using error accumulation and ensures proper resource cleanup.
-func Iter[T any](rows Rows, columns map[string]Scanner[T]) (Iterator[T], error) {
+func Iter[T any](rows Rows, columns Columns[T]) (Iterator[T], error) {
 	names, err := rows.Columns()
 	if err != nil {
 		return Iterator[T]{}, errors.Join(err, rows.Close())
