@@ -6,9 +6,10 @@
 [![codecov](https://codecov.io/gh/wroge/scan/branch/main/graph/badge.svg?token=SBSedMOGHR)](https://codecov.io/gh/wroge/scan)
 [![GitHub tag (latest SemVer)](https://img.shields.io/github/tag/wroge/scan.svg?style=social)](https://github.com/wroge/scan/tags)
 
-- Don't write the same code over and over again.
-- Auto closing.
-- Define the mapping (Columns) in one place.
+- Don't write the same code over and over again,
+- Auto closing,
+- Mapping (Columns) in one place,
+- Best practices for error handling.
 
 ## Define Columns
 

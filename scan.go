@@ -224,7 +224,7 @@ func (i Iterator[T]) All() ([]T, error) {
 
 		err = i.Scan(&list[index])
 		if err != nil {
-			return nil, errors.Join(err, i.Close())
+			return nil, errors.Join(err, i.Err(), i.Close())
 		}
 
 		index++
@@ -244,7 +244,7 @@ func (i Iterator[T]) One() (T, error) {
 	)
 
 	if !i.Next() {
-		return typ, errors.Join(i.Close(), ErrNoRows)
+		return typ, errors.Join(i.Err(), i.Close(), ErrNoRows)
 	}
 
 	err = i.Scan(&typ)
@@ -253,7 +253,7 @@ func (i Iterator[T]) One() (T, error) {
 	}
 
 	if i.Next() {
-		return typ, errors.Join(i.Close(), ErrTooManyRows)
+		return typ, errors.Join(i.Err(), i.Close(), ErrTooManyRows)
 	}
 
 	return typ, errors.Join(i.Err(), i.Close())
@@ -267,7 +267,7 @@ func (i Iterator[T]) First() (T, error) {
 	var typ T
 
 	if !i.Next() {
-		return typ, errors.Join(i.Close(), ErrNoRows)
+		return typ, errors.Join(i.Err(), i.Close(), ErrNoRows)
 	}
 
 	return typ, errors.Join(i.Scan(&typ), i.Err(), i.Close())
