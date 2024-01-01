@@ -10,7 +10,6 @@
 package scan
 
 import (
-	"database/sql"
 	"encoding/json"
 	"errors"
 )
@@ -91,7 +90,7 @@ type Columns[T any] map[string]Scanner[T]
 // First retrieves the first row from the iterator, scans it into a value of type T, and closes the iterator.
 // It returns the scanned value and any encountered error during scanning, closing, or if no rows are found.
 // The method handles errors gracefully by using error accumulation and specifically identifies the case
-// of no rows found using the sql.ErrNoRows error.
+// of no rows found using the ErrNoRows error.
 func First[T any](rows Rows, columns Columns[T]) (T, error) {
 	var t T
 
@@ -245,7 +244,7 @@ func (i Iterator[T]) One() (T, error) {
 	)
 
 	if !i.Next() {
-		return typ, errors.Join(i.Close(), sql.ErrNoRows, ErrNoRows)
+		return typ, errors.Join(i.Close(), ErrNoRows)
 	}
 
 	err = i.Scan(&typ)
@@ -263,12 +262,12 @@ func (i Iterator[T]) One() (T, error) {
 // First retrieves the first row from the iterator, scans it into a value of type T, and closes the iterator.
 // It returns the scanned value and any encountered error during scanning, closing, or if no rows are found.
 // The method handles errors gracefully by using error accumulation and specifically identifies the case
-// of no rows found using the sql.ErrNoRows error.
+// of no rows found using the ErrNoRows error.
 func (i Iterator[T]) First() (T, error) {
 	var typ T
 
 	if !i.Next() {
-		return typ, errors.Join(i.Close(), sql.ErrNoRows)
+		return typ, errors.Join(i.Close(), ErrNoRows)
 	}
 
 	return typ, errors.Join(i.Scan(&typ), i.Err(), i.Close())

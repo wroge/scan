@@ -10,10 +10,9 @@
 - Auto closing.
 - Define the mapping (Columns) in one place.
 
-## Example
+## Define Columns
 
-```go 
-
+```go
 type Author struct {
 	ID   int64
 	Name string
@@ -27,37 +26,88 @@ type Post struct {
 
 var columns = scan.Columns[Post]{
 	// Any value supported by your database driver can be used.
-	"id":      scan.Any(func(p *Post, id int64) { p.ID = id }),
+	"id": scan.Any(func(p *Post, id int64) { p.ID = id }),
 	// Nullable data is scanned into a pointer (*string).
 	// If pointer is nil, the default value is used.
-	"title":   scan.Null("default value", func(p *Post, title string) { p.Title = title }),
+	"title": scan.Null("default value", func(p *Post, title string) { p.Title = title }),
 	// JSON data is scanned into bytes and unmarshalled into []Author.
 	"authors": scan.JSON(func(p *Post, authors []Author) { p.Authors = authors }),
+
+	// "column": scan.Func[Post, V](func(p *Post, value V) error {
+	// 	return nil
+	// }),
+}
+```
+
+## Scan All
+
+```go 
+rows, err := db.Query("SELECT ...")
+if err != nil {
+	// handle error
 }
 
-rows, err := db.Query("SELECT ...")
-// always handle error
-
-// All
 posts, err := scan.All(rows, columns)
+if err != nil {
+	// handle error
+}
+```
 
-// First
+## Scan First
+
+```go 
 post, err := scan.First(rows, columns)
+if err != nil {
+	if errors.Is(err, scan.ErrNoRows) {
+		// handle no rows
+	}
 
-// One
+	// handle other error
+}
+```
+
+## Scan One
+
+```go 
 post, err := scan.One(rows, columns)
+if err != nil {
+	if errors.Is(err, scan.ErrTooManyRows) {
+		// handle too many rows
+	}
+	if errors.Is(err, scan.ErrNoRows) {
+		// handle no rows
+	}
 
-// Iterator
+	// handle other error
+}
+```
+
+## Iterator
+
+```go 
+rows, err := db.Query("SELECT ... LIMIT 10")
+if err != nil {
+	// handle error
+}
+
 iter, err := scan.Iter(rows, columns)
+if err != nil {
+	// handle error
+}
 
 defer iter.Close()
 
-for iter.Next() {
-	var post2 Post 
-	// Scan into existing value
-	err = iter.Scan(&post2)
+var (
+	posts = make([]Post, 10)
+	index int
+)
 
-	// Or return a new value
-	post, err := iter.Value()
+for iter.Next() {
+	err = iter.Scan(&posts[index])
+	if err != nil {
+		// handle error
+	}
+
+	index++
 }
 ```
