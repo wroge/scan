@@ -214,6 +214,26 @@ func TestFirstError3(t *testing.T) {
 	}
 }
 
+func TestIterator(t *testing.T) {
+	t.Parallel()
+
+	iter, err := scan.Iter[Post](rows1(), columns1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for iter.Next() {
+		_, err = iter.Value()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err = iter.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 type fakeRows struct {
 	columnsErr error
 	closeErr   error
