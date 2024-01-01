@@ -28,12 +28,13 @@ type Post struct {
 var columns = scan.Columns[Post]{
 	// Any value supported by your database driver can be used.
 	"id": scan.Any(func(p *Post, id int64) { p.ID = id }),
-	// Nullable data is scanned into a pointer (*string).
+	// Nullable values are scanned into pointers.
 	// If pointer is nil, the default value is used.
 	"title": scan.Null("default value", func(p *Post, title string) { p.Title = title }),
-	// JSON data is scanned into bytes and unmarshalled into []Author.
+	// JSON values are scanned into bytes and unmarshalled into any type.
 	"authors": scan.JSON(func(p *Post, authors []Author) { p.Authors = authors }),
 
+	// Or you could create a custom scanner with this function.
 	// "column": scan.Func[Post, V](func(p *Post, value V) error {
 	// 	return nil
 	// }),
