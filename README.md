@@ -84,7 +84,7 @@ if err != nil {
 }
 ```
 
-## Iterator
+## Scan Limit
 
 ```go 
 rows, err := db.Query("SELECT ... LIMIT 10")
@@ -92,6 +92,15 @@ if err != nil {
 	// handle error
 }
 
+posts, err := scan.Limit(rows, columns, 10)
+if err != nil {
+	// handle error
+}
+```
+
+## Iterator
+
+```go 
 iter, err := scan.Iter(rows, columns)
 if err != nil {
 	// handle error
@@ -99,17 +108,16 @@ if err != nil {
 
 defer iter.Close()
 
-var (
-	posts = make([]Post, 10)
-	index int
-)
-
 for iter.Next() {
 	err = iter.Scan(&posts[index])
 	if err != nil {
 		// handle error
 	}
 
-	index++
+	// Or use the Value method:
+	// post, err := iter.Value()
+	// if err != nil {
+		// handle error
+	// }
 }
 ```

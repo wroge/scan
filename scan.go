@@ -129,6 +129,18 @@ func All[T any](rows Rows, columns Columns[T]) ([]T, error) {
 	return iter.All()
 }
 
+// Limit retrieves a maximum number of rows from the iterator, scans them into a slice of type T, and
+// closes the iterator. It returns the populated slice and any encountered error during scanning or closing.
+// The method efficiently handles errors by using error accumulation and ensures proper resource cleanup.
+func Limit[T any](rows Rows, columns Columns[T], limit int) ([]T, error) {
+	iter, err := Iter(rows, columns)
+	if err != nil {
+		return nil, err
+	}
+
+	return iter.Limit(limit)
+}
+
 // Iter creates a new iterator for the given SQL rows and a map of column names to custom scanners.
 // It returns the initialized iterator and any encountered error during column retrieval or iterator creation.
 // The method efficiently handles errors by using error accumulation and ensures proper resource cleanup.
@@ -228,6 +240,36 @@ func (i Iterator[T]) All() ([]T, error) {
 		}
 
 		index++
+	}
+
+	return list, errors.Join(i.Err(), i.Close())
+}
+
+// Max retrieves a maximal number of rows from the iterator, scans them into a slice of type T, and closes
+// the iterator. It returns the populated slice and any encountered error during scanning or closing.
+// The method efficiently handles errors by using error accumulation and ensures proper resource cleanup.
+func (i Iterator[T]) Limit(limit int) ([]T, error) {
+	var (
+		index = 0
+		list  = make([]T, limit)
+		err   error
+	)
+
+	for i.Next() {
+		if index >= limit {
+			return nil, errors.Join(err, i.Err(), i.Close(), ErrTooManyRows)
+		}
+
+		err = i.Scan(&list[index])
+		if err != nil {
+			return nil, errors.Join(err, i.Err(), i.Close())
+		}
+
+		index++
+	}
+
+	if index < limit {
+		list = list[:index]
 	}
 
 	return list, errors.Join(i.Err(), i.Close())

@@ -116,6 +116,38 @@ func TestAll(t *testing.T) {
 	}
 }
 
+func TestLimit(t *testing.T) {
+	t.Parallel()
+
+	posts, err := scan.Limit[Post](rows1(), columns1, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if fmt.Sprint(posts) != `[{1 No Title [{1 Jim} {2 Tim}]} {2 Post Two [{2 Tim}]}`+
+		` {3 Post Three [{2 Tim} {3 Tom}]} {4 Post Four [{1 Jim} {2 Tim}]}`+
+		` {5 Post Five [{1 Jim} {3 Tom}]} {6 Post Six [{2 Tim}]} {7 Post Seven [{3 Tom}]}`+
+		` {8 Post Eight [{1 Jim}]} {9 Post Nine [{1 Jim} {2 Tim} {3 Tom}]} {10 Post Ten [{3 Tom}]}]` {
+		t.Fatal(posts)
+	}
+}
+
+func TestLimit2(t *testing.T) {
+	t.Parallel()
+
+	posts, err := scan.Limit[Post](rows1(), columns1, 12)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if fmt.Sprint(posts) != `[{1 No Title [{1 Jim} {2 Tim}]} {2 Post Two [{2 Tim}]}`+
+		` {3 Post Three [{2 Tim} {3 Tom}]} {4 Post Four [{1 Jim} {2 Tim}]}`+
+		` {5 Post Five [{1 Jim} {3 Tom}]} {6 Post Six [{2 Tim}]} {7 Post Seven [{3 Tom}]}`+
+		` {8 Post Eight [{1 Jim}]} {9 Post Nine [{1 Jim} {2 Tim} {3 Tom}]} {10 Post Ten [{3 Tom}]}]` {
+		t.Fatal(posts, len(posts))
+	}
+}
+
 func TestFirst(t *testing.T) {
 	t.Parallel()
 
