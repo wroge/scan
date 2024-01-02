@@ -1,17 +1,17 @@
-# scan - sql rows into any type
-
 [![go.dev reference](https://img.shields.io/badge/go.dev-reference-007d9c?logo=go&logoColor=white)](https://pkg.go.dev/github.com/wroge/scan)
 [![Go Report Card](https://goreportcard.com/badge/github.com/wroge/scan)](https://goreportcard.com/report/github.com/wroge/scan)
 ![golangci-lint](https://github.com/wroge/scan/workflows/golangci-lint/badge.svg)
 [![codecov](https://codecov.io/gh/wroge/scan/branch/main/graph/badge.svg?token=SBSedMOGHR)](https://codecov.io/gh/wroge/scan)
 [![GitHub tag (latest SemVer)](https://img.shields.io/github/tag/wroge/scan.svg?style=social)](https://github.com/wroge/scan/tags)
 
+# scan - generic sql rows mapper
+
 - Don't write the same code over and over again,
 - Auto closing,
-- Mapping (Columns) in one place,
+- No Reflection (faster than any reflection based mappers),
 - Best practices for error handling.
 
-## Define Columns
+## Example
 
 ```go
 type Author struct {
@@ -41,21 +41,17 @@ var columns = scan.Columns[Post]{
 }
 ```
 
-## Scan All
+- Scan all rows:
 
 ```go 
 rows, err := db.Query("SELECT ...")
-if err != nil {
-	// handle error
-}
+// handle error
 
 posts, err := scan.All(rows, columns)
-if err != nil {
-	// handle error
-}
+// handle error
 ```
 
-## Scan First
+- Scan first row:
 
 ```go 
 post, err := scan.First(rows, columns)
@@ -68,7 +64,7 @@ if err != nil {
 }
 ```
 
-## Scan One
+- Scan exact one row:
 
 ```go 
 post, err := scan.One(rows, columns)
@@ -84,40 +80,30 @@ if err != nil {
 }
 ```
 
-## Scan Limit
+- Scan a known number of rows:
 
 ```go 
 rows, err := db.Query("SELECT ... LIMIT 10")
-if err != nil {
-	// handle error
-}
+// handle error
 
-posts, err := scan.Limit(rows, columns, 10)
-if err != nil {
-	// handle error
-}
+posts, err := scan.Limit(10, rows, columns)
+// handle error
 ```
 
-## Iterator
+- Scan rows using the underlying Iterator:
 
 ```go 
 iter, err := scan.Iter(rows, columns)
-if err != nil {
-	// handle error
-}
+// handle error
 
 defer iter.Close()
 
 for iter.Next() {
 	err = iter.Scan(&posts[index])
-	if err != nil {
-		// handle error
-	}
+	// handle error
 
 	// Or use the Value method:
 	// post, err := iter.Value()
-	// if err != nil {
-		// handle error
-	// }
+	// handle error
 }
 ```

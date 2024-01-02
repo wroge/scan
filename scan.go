@@ -6,7 +6,7 @@
 // Users can create iterators using the Iter function, and then use the provided methods like All, One, or First for
 // different use cases.
 //
-//nolint:wrapcheck,ireturn,structcheck,golint
+//nolint:wrapcheck,ireturn,structcheck,golint,varnamelen
 package scan
 
 import (
@@ -70,15 +70,15 @@ func Null[T, V any](def V, scan func(*T, V)) Func[T, *V] {
 
 // JSON creates a custom scanner for a column containing JSON data with a specified scan function.
 func JSON[T, V any](scan func(*T, V)) Func[T, []byte] {
-	return func(typ *T, b []byte) error {
-		var value V
+	return func(t *T, b []byte) error {
+		var v V
 
-		err := json.Unmarshal(b, &value)
+		err := json.Unmarshal(b, &v)
 		if err != nil {
 			return err
 		}
 
-		scan(typ, value)
+		scan(t, v)
 
 		return nil
 	}
@@ -132,7 +132,7 @@ func All[T any](rows Rows, columns Columns[T]) ([]T, error) {
 // Limit retrieves a maximum number of rows from the iterator, scans them into a slice of type T, and
 // closes the iterator. It returns the populated slice and any encountered error during scanning or closing.
 // The method efficiently handles errors by using error accumulation and ensures proper resource cleanup.
-func Limit[T any](rows Rows, columns Columns[T], limit int) ([]T, error) {
+func Limit[T any](limit int, rows Rows, columns Columns[T]) ([]T, error) {
 	iter, err := Iter(rows, columns)
 	if err != nil {
 		return nil, err
@@ -153,14 +153,13 @@ func Iter[T any](rows Rows, columns Columns[T]) (Iterator[T], error) {
 	var (
 		dest     = make([]any, len(names))
 		scanners = make([]func(*T) error, len(names))
-		ignore   any
 	)
 
 	for i, n := range names {
 		if s, ok := columns[n]; ok {
 			dest[i], scanners[i] = s.Scan()
 		} else {
-			dest[i] = &ignore
+			dest[i] = new(any)
 		}
 	}
 
@@ -196,7 +195,7 @@ func (i Iterator[T]) Next() bool {
 // Scan scans the current row of the iterator into the provided value of type T.
 // It internally uses the underlying SQL rows.Scan method and then applies any custom scanners
 // provided during the iterator's initialization. It returns any encountered error during scanning.
-func (i Iterator[T]) Scan(typ *T) error {
+func (i Iterator[T]) Scan(t *T) error {
 	err := i.rows.Scan(i.dest...)
 	if err != nil {
 		return err
@@ -204,7 +203,7 @@ func (i Iterator[T]) Scan(typ *T) error {
 
 	for _, s := range i.scanners {
 		if s != nil {
-			err = s(typ)
+			err = s(t)
 			if err != nil {
 				return err
 			}
@@ -257,7 +256,7 @@ func (i Iterator[T]) Limit(limit int) ([]T, error) {
 
 	for i.Next() {
 		if index >= limit {
-			return nil, errors.Join(err, i.Err(), i.Close(), ErrTooManyRows)
+			break
 		}
 
 		err = i.Scan(&list[index])
@@ -281,24 +280,24 @@ func (i Iterator[T]) Limit(limit int) ([]T, error) {
 // cases such as no rows found or multiple rows encountered.
 func (i Iterator[T]) One() (T, error) {
 	var (
-		typ T
+		t   T
 		err error
 	)
 
 	if !i.Next() {
-		return typ, errors.Join(i.Err(), i.Close(), ErrNoRows)
+		return t, errors.Join(i.Err(), i.Close(), ErrNoRows)
 	}
 
-	err = i.Scan(&typ)
+	err = i.Scan(&t)
 	if err != nil {
-		return typ, errors.Join(err, i.Err())
+		return t, errors.Join(err, i.Err())
 	}
 
 	if i.Next() {
-		return typ, errors.Join(i.Err(), i.Close(), ErrTooManyRows)
+		return t, errors.Join(i.Err(), i.Close(), ErrTooManyRows)
 	}
 
-	return typ, errors.Join(i.Err(), i.Close())
+	return t, errors.Join(i.Err(), i.Close())
 }
 
 // First retrieves the first row from the iterator, scans it into a value of type T, and closes the iterator.
@@ -306,11 +305,11 @@ func (i Iterator[T]) One() (T, error) {
 // The method handles errors gracefully by using error accumulation and specifically identifies the case
 // of no rows found using the ErrNoRows error.
 func (i Iterator[T]) First() (T, error) {
-	var typ T
+	var t T
 
 	if !i.Next() {
-		return typ, errors.Join(i.Err(), i.Close(), ErrNoRows)
+		return t, errors.Join(i.Err(), i.Close(), ErrNoRows)
 	}
 
-	return typ, errors.Join(i.Scan(&typ), i.Err(), i.Close())
+	return t, errors.Join(i.Scan(&t), i.Err(), i.Close())
 }
