@@ -268,6 +268,15 @@ func TestAllError2(t *testing.T) {
 	}
 }
 
+func TestLimitError2(t *testing.T) {
+	t.Parallel()
+
+	_, err := scan.All[Post](rows4(), columns1)
+	if err == nil {
+		t.Fatal("error is nil")
+	}
+}
+
 func TestFirstError2(t *testing.T) {
 	t.Parallel()
 
