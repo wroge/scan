@@ -223,6 +223,15 @@ func TestOneError3(t *testing.T) {
 	}
 }
 
+func TestOneError4(t *testing.T) {
+	t.Parallel()
+
+	_, err := scan.One[Post](rows3(), columns1)
+	if err == nil {
+		t.Fatal(err)
+	}
+}
+
 func TestAllError(t *testing.T) {
 	t.Parallel()
 
