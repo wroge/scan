@@ -256,7 +256,7 @@ func (i Iterator[T]) Limit(limit int) ([]T, error) {
 
 	for i.Next() {
 		if index >= limit {
-			break
+			return list, errors.Join(ErrTooManyRows, i.Err(), i.Close())
 		}
 
 		err = i.Scan(&list[index])

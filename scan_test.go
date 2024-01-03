@@ -151,13 +151,9 @@ func TestLimit2(t *testing.T) {
 func TestLimit3(t *testing.T) {
 	t.Parallel()
 
-	posts, err := scan.Limit[Post](1, rows1(), columns1)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if fmt.Sprint(posts) != `[{1 No Title [{1 Jim} {2 Tim}]}]` {
-		t.Fatal(posts, len(posts))
+	_, err := scan.Limit[Post](1, rows1(), columns1)
+	if err == nil {
+		t.Fatal("should be ErrTooManyRows")
 	}
 }
 

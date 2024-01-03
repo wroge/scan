@@ -41,14 +41,14 @@ var columns = scan.Columns[Post]{
 	// 	return nil
 	// }),
 }
+
+rows, err := db.Query("SELECT ...")
+// handle error
 ```
 
 - Scan all rows:
 
 ```go 
-rows, err := db.Query("SELECT ...")
-// handle error
-
 posts, err := scan.All(rows, columns)
 // handle error
 ```
@@ -82,14 +82,17 @@ if err != nil {
 }
 ```
 
-- Scan a known number of rows:
+- Scan a known or maxmum number of rows:
 
 ```go 
-rows, err := db.Query("SELECT ... LIMIT 10")
-// handle error
-
 posts, err := scan.Limit(10, rows, columns)
-// handle error
+if err != nil {
+	if errors.Is(err, scan.ErrTooManyRows) {
+		// ignore if result set has more than 10 rows
+	}
+
+	// handle other error
+}
 ```
 
 - Scan rows using the underlying Iterator:
@@ -101,11 +104,13 @@ iter, err := scan.Iter(rows, columns)
 defer iter.Close()
 
 for iter.Next() {
-	err = iter.Scan(&posts[index])
+	var post Post
+
+	err = iter.Scan(&post)
 	// handle error
 
 	// Or use the Value method:
-	// post, err := iter.Value()
+	post, err := iter.Value()
 	// handle error
 }
 ```
