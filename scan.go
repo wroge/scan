@@ -1,10 +1,4 @@
-// Scan provides utility functions for scanning SQL rows into custom types using a flexible iterator approach.
-// It supports custom scanners for individual columns, error handling, and resource cleanup.
-// The package is designed to handle common scenarios such as retrieving the first row, all rows, or a single row from a
-// result set. Custom scanning functions can be easily integrated to handle specific data types or processing logic.
-// The Iterator type facilitates efficient row iteration, scanning, and error management.
-// Users can create iterators using the Iter function, and then use the provided methods like All, One, or First for
-// different use cases.
+// Scan sql rows into any type powered by generics with proper error handling and automatic resource cleanup.
 //
 //nolint:wrapcheck,ireturn,structcheck,golint,varnamelen
 package scan
@@ -30,6 +24,7 @@ type Rows interface {
 }
 
 // Scanner defines the interface for a custom column scanner.
+// It returns a pair: destination for scan and a function to process the scan result.
 type Scanner[T any] interface {
 	Scan() (any, func(*T) error)
 }
@@ -87,10 +82,7 @@ func JSON[T, V any](scan func(*T, V)) Func[T, []byte] {
 // Columns are used by the utility functions.
 type Columns[T any] map[string]Scanner[T]
 
-// First retrieves the first row from the iterator, scans it into a value of type T, and closes the iterator.
-// It returns the scanned value and any encountered error during scanning, closing, or if no rows are found.
-// The method handles errors gracefully by using error accumulation and specifically identifies the case
-// of no rows found using the ErrNoRows error.
+// First retrieves the first row, scans it, and closes the iterator.
 func First[T any](rows Rows, columns Columns[T]) (T, error) {
 	var t T
 
@@ -102,10 +94,7 @@ func First[T any](rows Rows, columns Columns[T]) (T, error) {
 	return iter.First()
 }
 
-// One retrieves a single row from the iterator, scans it into a value of type T, and closes the iterator.
-// It returns the scanned value and any encountered error during scanning, closing, or if no rows are found.
-// The method handles errors gracefully by using error accumulation and provides specific error types for
-// cases such as no rows found or multiple rows encountered.
+// One retrieves a single row, scans it, and closes the iterator.
 func One[T any](rows Rows, columns Columns[T]) (T, error) {
 	var t T
 
@@ -117,9 +106,7 @@ func One[T any](rows Rows, columns Columns[T]) (T, error) {
 	return iter.One()
 }
 
-// All retrieves all rows from the iterator, scans them into a slice of type T, and closes the iterator.
-// It returns the populated slice and any encountered error during scanning or closing.
-// The method efficiently handles errors by using error accumulation and ensures proper resource cleanup.
+// All retrieves all rows, scans them into a slice, and closes the iterator.
 func All[T any](rows Rows, columns Columns[T]) ([]T, error) {
 	iter, err := Iter(rows, columns)
 	if err != nil {
@@ -129,9 +116,7 @@ func All[T any](rows Rows, columns Columns[T]) ([]T, error) {
 	return iter.All()
 }
 
-// Limit retrieves a maximum number of rows from the iterator, scans them into a slice of type T, and
-// closes the iterator. It returns the populated slice and any encountered error during scanning or closing.
-// The method efficiently handles errors by using error accumulation and ensures proper resource cleanup.
+// Limit retrieves up to a specified number of rows, scans them, and closes the iterator.
 func Limit[T any](limit int, rows Rows, columns Columns[T]) ([]T, error) {
 	iter, err := Iter(rows, columns)
 	if err != nil {
@@ -141,9 +126,7 @@ func Limit[T any](limit int, rows Rows, columns Columns[T]) ([]T, error) {
 	return iter.Limit(limit)
 }
 
-// Iter creates a new iterator for the given SQL rows and a map of column names to custom scanners.
-// It returns the initialized iterator and any encountered error during column retrieval or iterator creation.
-// The method efficiently handles errors by using error accumulation and ensures proper resource cleanup.
+// Iter creates a new iterator.
 func Iter[T any](rows Rows, columns Columns[T]) (Iterator[T], error) {
 	names, err := rows.Columns()
 	if err != nil {
@@ -170,31 +153,29 @@ func Iter[T any](rows Rows, columns Columns[T]) (Iterator[T], error) {
 	}, nil
 }
 
-// Iterator represents an iterator for scanning rows from a SQL result set.
+// Iterator for scanning SQL rows.
 type Iterator[T any] struct {
 	rows     Rows
 	dest     []any
 	scanners []func(*T) error
 }
 
-// Close closes the underlying SQL rows, releasing associated resources.
+// Close releases resources of the iterator.
 func (i Iterator[T]) Close() error {
 	return i.rows.Close()
 }
 
-// Err returns any error encountered during the iteration process.
+// Err returns any error from iteration process.
 func (i Iterator[T]) Err() error {
 	return i.rows.Err()
 }
 
-// Next advances the iterator to the next row in the result set.
+// Next advances the iterator to the next row.
 func (i Iterator[T]) Next() bool {
 	return i.rows.Next()
 }
 
-// Scan scans the current row of the iterator into the provided value of type T.
-// It internally uses the underlying SQL rows.Scan method and then applies any custom scanners
-// provided during the iterator's initialization. It returns any encountered error during scanning.
+// Scan scans the current row into a value of type T.
 func (i Iterator[T]) Scan(t *T) error {
 	err := i.rows.Scan(i.dest...)
 	if err != nil {
@@ -213,16 +194,14 @@ func (i Iterator[T]) Scan(t *T) error {
 	return nil
 }
 
-// Value uses the Scan method to return T.
+// Value retrieves the current row value.
 func (i Iterator[T]) Value() (T, error) {
 	var t T
 
 	return t, i.Scan(&t)
 }
 
-// All retrieves all rows from the iterator, scans them into a slice of type T, and closes the iterator.
-// It returns the populated slice and any encountered error during scanning or closing.
-// The method efficiently handles errors by using error accumulation and ensures proper resource cleanup.
+// All retrieves and scans all rows into a slice.
 func (i Iterator[T]) All() ([]T, error) {
 	var (
 		index = 0
@@ -244,9 +223,7 @@ func (i Iterator[T]) All() ([]T, error) {
 	return list, errors.Join(i.Err(), i.Close())
 }
 
-// Limit retrieves a maximal number of rows from the iterator, scans them into a slice of type T, and closes
-// the iterator. It returns the populated slice and any encountered error during scanning or closing.
-// The method efficiently handles errors by using error accumulation and ensures proper resource cleanup.
+// Limit retrieves and scans up to a specified number of rows.
 func (i Iterator[T]) Limit(limit int) ([]T, error) {
 	var (
 		index = 0
@@ -274,10 +251,7 @@ func (i Iterator[T]) Limit(limit int) ([]T, error) {
 	return list, errors.Join(i.Err(), i.Close())
 }
 
-// One retrieves a single row from the iterator, scans it into a value of type T, and closes the iterator.
-// It returns the scanned value and any encountered error during scanning, closing, or if no rows are found.
-// The method handles errors gracefully by using error accumulation and provides specific error types for
-// cases such as no rows found or multiple rows encountered.
+// One retrieves and scans a single row.
 func (i Iterator[T]) One() (T, error) {
 	var (
 		t   T
@@ -300,10 +274,7 @@ func (i Iterator[T]) One() (T, error) {
 	return t, errors.Join(i.Err(), i.Close())
 }
 
-// First retrieves the first row from the iterator, scans it into a value of type T, and closes the iterator.
-// It returns the scanned value and any encountered error during scanning, closing, or if no rows are found.
-// The method handles errors gracefully by using error accumulation and specifically identifies the case
-// of no rows found using the ErrNoRows error.
+// First retrieves and scans the first row.
 func (i Iterator[T]) First() (T, error) {
 	var t T
 

@@ -4,14 +4,18 @@
 [![codecov](https://codecov.io/gh/wroge/scan/branch/main/graph/badge.svg?token=SBSedMOGHR)](https://codecov.io/gh/wroge/scan)
 [![GitHub tag (latest SemVer)](https://img.shields.io/github/tag/wroge/scan.svg?style=social)](https://github.com/wroge/scan/tags)
 
-## Scan sql rows into any type powered by generics.
+## wroge/scan.
 
-- Don't write the same code over and over again,
-- Auto closing,
-- No Reflection (faster than any reflection based mappers),
-- Best practices for error handling.
+This package offers a powerful and efficient way to scan SQL rows into any Go type, leveraging the power of generics. This package emphasizes simplicity, performance, and best practices in error handling.
 
-### Example
+### Features
+
+- **Efficient and Reusable**: Avoid repetitive code with generalized scanning functions.
+- **Automatic Resource Management**: Automatic closing of iterators to prevent resource leaks.
+- **Non-Reflective Operations**: Offers faster performance compared to reflection-based mappers.
+- **Robust Error Handling**: Adheres to best practices for managing and reporting errors.
+
+### Examples
 
 ```go
 import "github.com/wroge/scan"
@@ -27,6 +31,7 @@ type Post struct {
 	Authors []Author
 }
 
+// Define mapping of database columns to struct fields.
 var columns = scan.Columns[Post]{
 	// Any value supported by your database driver can be used.
 	"id": scan.Any(func(p *Post, id int64) { p.ID = id }),
@@ -46,14 +51,14 @@ rows, err := db.Query("SELECT ...")
 // handle error
 ```
 
-- Scan all rows:
+- Scanning all rows:
 
 ```go 
 posts, err := scan.All(rows, columns)
 // handle error
 ```
 
-- Scan first row:
+- Scanning the first row:
 
 ```go 
 post, err := scan.First(rows, columns)
@@ -66,7 +71,7 @@ if err != nil {
 }
 ```
 
-- Scan exact one row:
+- Scanning exactly one row:
 
 ```go 
 post, err := scan.One(rows, columns)
@@ -82,7 +87,7 @@ if err != nil {
 }
 ```
 
-- Scan a known or maxmum number of rows:
+- Scanning a limited number of rows:
 
 ```go 
 posts, err := scan.Limit(10, rows, columns)
@@ -95,7 +100,7 @@ if err != nil {
 }
 ```
 
-- Scan rows using the underlying Iterator:
+- Using the Iterator Directly:
 
 ```go 
 iter, err := scan.Iter(rows, columns)
