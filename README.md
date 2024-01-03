@@ -4,7 +4,7 @@
 [![codecov](https://codecov.io/gh/wroge/scan/branch/main/graph/badge.svg?token=SBSedMOGHR)](https://codecov.io/gh/wroge/scan)
 [![GitHub tag (latest SemVer)](https://img.shields.io/github/tag/wroge/scan.svg?style=social)](https://github.com/wroge/scan/tags)
 
-## wroge/scan.
+# wroge/scan
 
 This package offers a powerful and efficient way to scan SQL rows into any Go type, leveraging the power of generics. This package emphasizes simplicity, performance, and best practices in error handling.
 
@@ -15,7 +15,7 @@ This package offers a powerful and efficient way to scan SQL rows into any Go ty
 - **Non-Reflective Operations**: Offers faster performance compared to reflection-based mappers.
 - **Robust Error Handling**: Adheres to best practices for managing and reporting errors.
 
-### Examples
+### Usage
 
 ```go
 import "github.com/wroge/scan"
@@ -33,12 +33,17 @@ type Post struct {
 
 // Define mapping of database columns to struct fields.
 var columns = scan.Columns[Post]{
-	// Any value supported by your database driver can be used.
+	// Map the 'id' column to the 'ID' field in the 'Post' struct.
+	// Uses the 'scan.Any' function for direct assignment without additional processing.
 	"id": scan.Any(func(p *Post, id int64) { p.ID = id }),
-	// Nullable values are scanned into pointers.
-	// If pointer is nil, the default value is used.
-	"title": scan.Null("default value", func(p *Post, title string) { p.Title = title }),
-	// JSON values are scanned into bytes and unmarshalled into any type.
+
+	// Map the 'title' column to the 'Title' field in the 'Post' struct.
+	// The 'scan.Null' function allows handling of nullable database columns.
+	// If the 'title' column is null, 'default title' is used as the value.
+	"title": scan.Null("default title", func(p *Post, title string) { p.Title = title }),
+
+	// Map the 'authors' column, expected to be in JSON format, to the 'Authors' field in the 'Post' struct.
+	// The 'scan.JSON' function automatically handles unmarshalling of the JSON data into the 'Author' struct slice.
 	"authors": scan.JSON(func(p *Post, authors []Author) { p.Authors = authors }),
 
 	// Or you could create a custom scanner with this function.
@@ -51,14 +56,14 @@ rows, err := db.Query("SELECT ...")
 // handle error
 ```
 
-- Scanning all rows:
+#### Scanning all rows
 
 ```go 
 posts, err := scan.All(rows, columns)
 // handle error
 ```
 
-- Scanning the first row:
+#### Scanning the first row
 
 ```go 
 post, err := scan.First(rows, columns)
@@ -71,7 +76,7 @@ if err != nil {
 }
 ```
 
-- Scanning exactly one row:
+#### Scanning exactly one row
 
 ```go 
 post, err := scan.One(rows, columns)
@@ -87,7 +92,7 @@ if err != nil {
 }
 ```
 
-- Scanning a limited number of rows:
+#### Scanning a limited number of rows
 
 ```go 
 posts, err := scan.Limit(10, rows, columns)
@@ -100,7 +105,7 @@ if err != nil {
 }
 ```
 
-- Using the Iterator Directly:
+#### Using the Iterator Directly
 
 ```go 
 iter, err := scan.Iter(rows, columns)
