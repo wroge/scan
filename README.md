@@ -4,18 +4,18 @@
 [![codecov](https://codecov.io/gh/wroge/scan/branch/main/graph/badge.svg?token=SBSedMOGHR)](https://codecov.io/gh/wroge/scan)
 [![GitHub tag (latest SemVer)](https://img.shields.io/github/tag/wroge/scan.svg?style=social)](https://github.com/wroge/scan/tags)
 
-# wroge/scan
+# Scan
 
 This package offers a powerful and efficient way to scan SQL rows into any Go type, leveraging the power of generics. This package emphasizes simplicity, performance, and best practices in error handling.
 
-### Features
+## Features
 
 - **Efficient and Reusable**: Avoid repetitive code with generalized scanning functions.
 - **Automatic Resource Management**: Automatic closing of iterators to prevent resource leaks.
 - **Non-Reflective Operations**: Offers faster performance compared to reflection-based mappers.
 - **Robust Error Handling**: Adheres to best practices for managing and reporting errors.
 
-### Usage
+## Usage
 
 ```go
 import "github.com/wroge/scan"
