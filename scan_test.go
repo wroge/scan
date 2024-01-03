@@ -174,10 +174,19 @@ func TestFirst(t *testing.T) {
 	}
 }
 
+func TestFirst2(t *testing.T) {
+	t.Parallel()
+
+	_, err := scan.First[Post](rows5(), columns1)
+	if !errors.Is(err, scan.ErrNoRows) {
+		t.Fatal(err)
+	}
+}
+
 func TestOne(t *testing.T) {
 	t.Parallel()
 
-	post, err := scan.First[Post](rows2(), columns2)
+	post, err := scan.One[Post](rows2(), columns2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -218,6 +227,15 @@ func TestAllError(t *testing.T) {
 	t.Parallel()
 
 	_, err := scan.All[Post](rows3(), columns1)
+	if err == nil {
+		t.Fatal("error is nil")
+	}
+}
+
+func TestLimitError(t *testing.T) {
+	t.Parallel()
+
+	_, err := scan.Limit[Post](10, rows3(), columns1)
 	if err == nil {
 		t.Fatal("error is nil")
 	}
