@@ -4,16 +4,18 @@
 [![codecov](https://codecov.io/gh/wroge/scan/branch/main/graph/badge.svg?token=SBSedMOGHR)](https://codecov.io/gh/wroge/scan)
 [![GitHub tag (latest SemVer)](https://img.shields.io/github/tag/wroge/scan.svg?style=social)](https://github.com/wroge/scan/tags)
 
-# scan - generic sql rows mapper
+## Scan sql rows into any type powered by generics.
 
 - Don't write the same code over and over again,
 - Auto closing,
 - No Reflection (faster than any reflection based mappers),
 - Best practices for error handling.
 
-## Example
+### Example
 
 ```go
+import "github.com/wroge/scan"
+
 type Author struct {
 	ID   int64
 	Name string
