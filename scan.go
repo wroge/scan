@@ -91,7 +91,11 @@ func First[T any](rows Rows, columns Columns[T]) (T, error) {
 		return t, err
 	}
 
-	return iter.First()
+	if !iter.Next() {
+		return t, errors.Join(iter.Err(), iter.Close(), ErrNoRows)
+	}
+
+	return t, errors.Join(iter.Scan(&t), iter.Err(), iter.Close())
 }
 
 // One retrieves a single row, scans it, and closes the iterator.
@@ -103,7 +107,19 @@ func One[T any](rows Rows, columns Columns[T]) (T, error) {
 		return t, err
 	}
 
-	return iter.One()
+	if !iter.Next() {
+		return t, errors.Join(iter.Err(), iter.Close(), ErrNoRows)
+	}
+
+	if err = iter.Scan(&t); err != nil {
+		return t, errors.Join(err, iter.Err())
+	}
+
+	if iter.Next() {
+		return t, errors.Join(iter.Err(), iter.Close(), ErrTooManyRows)
+	}
+
+	return t, errors.Join(iter.Err(), iter.Close())
 }
 
 // All retrieves all rows, scans them into a slice, and closes the iterator.
@@ -113,7 +129,22 @@ func All[T any](rows Rows, columns Columns[T]) ([]T, error) {
 		return nil, err
 	}
 
-	return iter.All()
+	var (
+		index = 0
+		list  []T
+	)
+
+	for iter.Next() {
+		list = append(list, *new(T))
+
+		if err = iter.Scan(&list[index]); err != nil {
+			return list, errors.Join(err, iter.Err(), iter.Close())
+		}
+
+		index++
+	}
+
+	return list, errors.Join(iter.Err(), iter.Close())
 }
 
 // Limit retrieves up to a specified number of rows, scans them, and closes the iterator.
@@ -123,7 +154,28 @@ func Limit[T any](limit int, rows Rows, columns Columns[T]) ([]T, error) {
 		return nil, err
 	}
 
-	return iter.Limit(limit)
+	var (
+		index = 0
+		list  = make([]T, limit)
+	)
+
+	for iter.Next() {
+		if index >= limit {
+			return list, errors.Join(ErrTooManyRows, iter.Err(), iter.Close())
+		}
+
+		if err = iter.Scan(&list[index]); err != nil {
+			return list, errors.Join(err, iter.Err(), iter.Close())
+		}
+
+		index++
+	}
+
+	if index < limit {
+		list = list[:index]
+	}
+
+	return list, errors.Join(iter.Err(), iter.Close())
 }
 
 // Iter creates a new iterator.
@@ -184,8 +236,7 @@ func (i Iterator[T]) Scan(t *T) error {
 
 	for _, s := range i.scanners {
 		if s != nil {
-			err = s(t)
-			if err != nil {
+			if err = s(t); err != nil {
 				return err
 			}
 		}
@@ -199,88 +250,4 @@ func (i Iterator[T]) Value() (T, error) {
 	var t T
 
 	return t, i.Scan(&t)
-}
-
-// All retrieves and scans all rows into a slice.
-func (i Iterator[T]) All() ([]T, error) {
-	var (
-		index = 0
-		list  []T
-		err   error
-	)
-
-	for i.Next() {
-		list = append(list, *new(T))
-
-		err = i.Scan(&list[index])
-		if err != nil {
-			return nil, errors.Join(err, i.Err(), i.Close())
-		}
-
-		index++
-	}
-
-	return list, errors.Join(i.Err(), i.Close())
-}
-
-// Limit retrieves and scans up to a specified number of rows.
-func (i Iterator[T]) Limit(limit int) ([]T, error) {
-	var (
-		index = 0
-		list  = make([]T, limit)
-		err   error
-	)
-
-	for i.Next() {
-		if index >= limit {
-			return list, errors.Join(ErrTooManyRows, i.Err(), i.Close())
-		}
-
-		err = i.Scan(&list[index])
-		if err != nil {
-			return nil, errors.Join(err, i.Err(), i.Close())
-		}
-
-		index++
-	}
-
-	if index < limit {
-		list = list[:index]
-	}
-
-	return list, errors.Join(i.Err(), i.Close())
-}
-
-// One retrieves and scans a single row.
-func (i Iterator[T]) One() (T, error) {
-	var (
-		t   T
-		err error
-	)
-
-	if !i.Next() {
-		return t, errors.Join(i.Err(), i.Close(), ErrNoRows)
-	}
-
-	err = i.Scan(&t)
-	if err != nil {
-		return t, errors.Join(err, i.Err())
-	}
-
-	if i.Next() {
-		return t, errors.Join(i.Err(), i.Close(), ErrTooManyRows)
-	}
-
-	return t, errors.Join(i.Err(), i.Close())
-}
-
-// First retrieves and scans the first row.
-func (i Iterator[T]) First() (T, error) {
-	var t T
-
-	if !i.Next() {
-		return t, errors.Join(i.Err(), i.Close(), ErrNoRows)
-	}
-
-	return t, errors.Join(i.Scan(&t), i.Err(), i.Close())
 }

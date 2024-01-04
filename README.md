@@ -6,14 +6,14 @@
 
 # Scan
 
-The scan package offers a powerful and efficient way to scan SQL rows into any Go type, leveraging the power of generics. This package emphasizes simplicity, performance, and best practices in error handling.
+This package offers a convenient and flexible way to scan SQL rows into any type, leveraging the power of generics.
 
 ## Features
 
-- **Efficient and Reusable**: Avoid repetitive code with generalized scanning functions.
-- **Automatic Resource Management**: Automatic closing of iterators to prevent resource leaks.
-- **Non-Reflective Operations**: Offers faster performance compared to reflection-based mappers.
-- **Robust Error Handling**: Adheres to best practices for managing and reporting errors.
+- **Efficient and Reusable**: Avoid repetitive code and define the column-mapping in one place.
+- **Auto Closing**: No need to worry about resource leaks.
+- **No Reflection**: Faster than reflection based mappers.
+- **Robust Error Handling**: Best practices for managing errors.
 
 ## Usage
 
@@ -83,7 +83,9 @@ post, err := scan.One(rows, columns)
 if err != nil {
 	if errors.Is(err, scan.ErrTooManyRows) {
 		// handle too many rows
+		// post is valid
 	}
+
 	if errors.Is(err, scan.ErrNoRows) {
 		// handle no rows
 	}
@@ -99,13 +101,14 @@ posts, err := scan.Limit(10, rows, columns)
 if err != nil {
 	if errors.Is(err, scan.ErrTooManyRows) {
 		// ignore if result set has more than 10 rows
+		// len(posts) == 10
 	}
 
 	// handle other error
 }
 ```
 
-#### Using the Iterator Directly
+#### Using the Iterator directly
 
 ```go 
 iter, err := scan.Iter(rows, columns)
