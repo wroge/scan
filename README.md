@@ -1,3 +1,7 @@
+Take a look at [github.com/wroge/esquel](https://github.com/wroge/esquel). 
+
+<br>
+
 [![go.dev reference](https://img.shields.io/badge/go.dev-reference-007d9c?logo=go&logoColor=white)](https://pkg.go.dev/github.com/wroge/scan)
 [![Go Report Card](https://goreportcard.com/badge/github.com/wroge/scan)](https://goreportcard.com/report/github.com/wroge/scan)
 ![golangci-lint](https://github.com/wroge/scan/workflows/golangci-lint/badge.svg)
